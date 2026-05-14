@@ -1,10 +1,14 @@
 # backend/model-worker/app/predictor.py
 import os
+import ipaddress
+import urllib.parse
 import requests
 from io import BytesIO
 from PIL import Image
 import torch
 from transformers import AutoProcessor, AutoModelForCausalLM
+
+MAX_IMAGE_BYTES = 50 * 1024 * 1024  # 50 MB
 
 MODEL_NAME = "deadbear34/qwen35-4b-plantdisease-cpt"
 
@@ -53,9 +57,32 @@ class PlantDiseasePredictor:
         self.model.eval()
 
     def _load_image(self, image_url: str) -> Image.Image:
-        response = requests.get(image_url, timeout=30)
+        parsed = urllib.parse.urlparse(image_url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
+
+        # Allow internal minio (minio hostname) — reject other private IPs
+        hostname = parsed.hostname or ""
+        if hostname not in ("minio", "localhost", "127.0.0.1"):
+            try:
+                addr = ipaddress.ip_address(hostname)
+                if addr.is_private:
+                    raise ValueError(f"Private IP not allowed: {hostname}")
+            except ValueError as e:
+                if "Private IP" in str(e):
+                    raise
+                # hostname is a domain name, allow it
+
+        response = requests.get(image_url, timeout=30, stream=True)
         response.raise_for_status()
-        return Image.open(BytesIO(response.content)).convert("RGB")
+
+        data = b""
+        for chunk in response.iter_content(chunk_size=8192):
+            data += chunk
+            if len(data) > MAX_IMAGE_BYTES:
+                raise ValueError("Image too large (max 50 MB)")
+
+        return Image.open(BytesIO(data)).convert("RGB")
 
     def _parse_class(self, class_name: str) -> dict:
         parts = class_name.split("___")
