@@ -39,6 +39,12 @@ services:
     env_file: .env
     ports:
       - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     deploy:
       resources:
         reservations:
@@ -50,6 +56,7 @@ services:
   main-api:
     build: ./backend/main-api
     env_file: .env
+    restart: unless-stopped
     ports:
       - "8000:8000"
     depends_on:
@@ -58,13 +65,20 @@ services:
       minio:
         condition: service_healthy
       model-worker:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
     build: ./frontend
     env_file: .env
+    restart: unless-stopped
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       - main-api
 

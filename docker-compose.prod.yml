@@ -25,7 +25,6 @@ services:
       - minio_data:/data
     ports:
       - "9000:9000"
-      - "9001:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -36,6 +35,12 @@ services:
     build: ./backend/model-worker
     env_file: .env
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     deploy:
       resources:
         reservations:
@@ -56,7 +61,7 @@ services:
       minio:
         condition: service_healthy
       model-worker:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -66,6 +71,12 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       - main-api
 
