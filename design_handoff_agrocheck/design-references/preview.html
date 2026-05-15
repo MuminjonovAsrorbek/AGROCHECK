@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Agrocheck — Design preview</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --paper: #fafaf7;
+    --ink: #0a1f15;
+    --ink-2: #2b3a31;
+    --muted: #6a7a70;
+    --primary: #0a3d2e;
+    --primary-2: #134d3a;
+    --primary-soft: #e7eee9;
+    --accent: #d4a017;
+    --accent-soft: #f4e9c8;
+    --line: rgba(10, 31, 21, 0.10);
+    --line-strong: rgba(10, 31, 21, 0.22);
+    --shadow-sm: 0 1px 2px rgba(10,31,21,0.04), 0 0 0 1px rgba(10,31,21,0.04);
+    --shadow-md: 0 10px 30px -10px rgba(10,31,21,0.18), 0 2px 6px rgba(10,31,21,0.05);
+    --shadow-lg: 0 30px 80px -20px rgba(10,31,21,0.25);
+    --sans: 'Manrope', system-ui, sans-serif;
+    --serif: 'Instrument Serif', Georgia, serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  html, body { margin: 0; padding: 0; background: #eceae3; font-family: var(--sans); color: var(--ink); height: 100%; }
+  * { box-sizing: border-box; }
+  #root { height: 100vh; display: flex; flex-direction: column; }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 6px; padding: 12px 18px;
+    background: #fff; border-bottom: 1px solid var(--line);
+    overflow-x: auto; flex-shrink: 0;
+  }
+  .toolbar .group-label {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.12em; padding: 0 8px;
+  }
+  .toolbar .divider { width: 1px; height: 22px; background: var(--line); margin: 0 6px; }
+  .toolbar button {
+    padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line);
+    background: #fff; color: var(--ink-2); cursor: pointer;
+    font-family: var(--sans); font-size: 12px; font-weight: 500; white-space: nowrap;
+  }
+  .toolbar button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .stage { flex: 1; overflow: auto; padding: 24px; background: #eceae3; display: flex; justify-content: center; align-items: flex-start; }
+  .frame { background: #fff; border-radius: 16px; box-shadow: var(--shadow-lg); overflow: hidden; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="variant1.jsx"></script>
+<script type="text/babel" src="mobile.jsx"></script>
+<script type="text/babel" src="upload.jsx"></script>
+<script type="text/babel" src="mobile-upload.jsx"></script>
+<script type="text/babel" src="dashboard.jsx"></script>
+<script type="text/babel" src="mobile-dashboard.jsx"></script>
+<script type="text/babel" src="history.jsx"></script>
+<script type="text/babel" src="mobile-history.jsx"></script>
+
+<script type="text/babel">
+const SCREENS = [
+  { id:'auth',            group:'Desktop · Auth',  label:'Sign in',   w: 1280, h: 820,  render: () => <Variant1 defaultMode="signin"/> },
+  { id:'auth-signup',     group:'Desktop · Auth',  label:'Sign up',   w: 1280, h: 820,  render: () => <Variant1 defaultMode="signup"/> },
+  { id:'upload',          group:'Desktop · App',   label:'Upload',    w: 1280, h: 860,  render: () => <UploadScreen/> },
+  { id:'analyzing',       group:'Desktop · App',   label:'Analyzing', w: 1280, h: 860,  render: () => <AnalyzingScreen/> },
+  { id:'result',          group:'Desktop · App',   label:'Result',    w: 1280, h: 1020, render: () => <ResultScreen/> },
+  { id:'dashboard',       group:'Desktop · App',   label:'Dashboard', w: 1280, h: 1100, render: () => <DashboardScreen/> },
+  { id:'history',         group:'Desktop · App',   label:'History',   w: 1280, h: 1200, render: () => <HistoryScreen/> },
+  { id:'m-auth',          group:'Mobile',          label:'Auth',      w: 420,  h: 820,  render: () => <div style={{display:'flex',height:'100%',alignItems:'center',justifyContent:'center'}}><MobileV1/></div> },
+  { id:'m-upload',        group:'Mobile',          label:'Home',      w: 420,  h: 820,  render: () => <div style={{display:'flex',height:'100%',alignItems:'center',justifyContent:'center'}}><MobileUpload/></div> },
+  { id:'m-analyzing',     group:'Mobile',          label:'Analyzing', w: 420,  h: 820,  render: () => <div style={{display:'flex',height:'100%',alignItems:'center',justifyContent:'center'}}><MobileAnalyzing/></div> },
+  { id:'m-result',        group:'Mobile',          label:'Result',    w: 420,  h: 820,  render: () => <div style={{display:'flex',height:'100%',alignItems:'center',justifyContent:'center'}}><MobileResult/></div> },
+  { id:'m-dashboard',     group:'Mobile',          label:'Dashboard', w: 420,  h: 820,  render: () => <div style={{display:'flex',height:'100%',alignItems:'center',justifyContent:'center'}}><MobileDashboard/></div> },
+  { id:'m-history',       group:'Mobile',          label:'History',   w: 420,  h: 820,  render: () => <div style={{display:'flex',height:'100%',alignItems:'center',justifyContent:'center'}}><MobileHistory/></div> },
+];
+
+function App() {
+  const [active, setActive] = React.useState('auth');
+  const screen = SCREENS.find(s => s.id === active);
+
+  const groups = {};
+  SCREENS.forEach(s => { if (!groups[s.group]) groups[s.group] = []; groups[s.group].push(s); });
+
+  return (
+    <>
+      <div className="toolbar">
+        {Object.entries(groups).map(([g, items], gi) => (
+          <React.Fragment key={g}>
+            {gi > 0 && <div className="divider"/>}
+            <span className="group-label">{g}</span>
+            {items.map(s => (
+              <button key={s.id} className={active === s.id ? 'active' : ''} onClick={()=>setActive(s.id)}>
+                {s.label}
+              </button>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+      <div className="stage">
+        <div className="frame" style={{ width: screen.w, height: screen.h }}>
+          {screen.render()}
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
