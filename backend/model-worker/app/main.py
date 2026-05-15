@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_predictor()   # warm-up: model loads at startup
+    try:
+        get_predictor()
+    except Exception as e:
+        logger.error("Model warm-up failed (will retry on first request): %s", e)
     yield
 
 
