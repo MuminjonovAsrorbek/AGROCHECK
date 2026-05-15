@@ -35,10 +35,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   main-api:
     build: ./backend/main-api
@@ -64,12 +64,13 @@ services:
       NODE_ENV: production
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
     depends_on:
-      - main-api
+      main-api:
+        condition: service_started
 
 volumes:
   postgres_data:
