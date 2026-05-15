@@ -1,0 +1,25 @@
+:root {
+  --bg: #ffffff;
+  --paper: #fafaf7;
+  --ink: #0a1f15;
+  --ink-2: #2b3a31;
+  --muted: #6a7a70;
+  --primary: #0a3d2e;
+  --primary-2: #134d3a;
+  --primary-soft: #e7eee9;
+  --accent: #d4a017;
+  --accent-soft: #f4e9c8;
+  --line: rgba(10, 31, 21, 0.10);
+  --line-strong: rgba(10, 31, 21, 0.22);
+  --shadow-sm: 0 1px 2px rgba(10,31,21,0.04), 0 0 0 1px rgba(10,31,21,0.04);
+  --shadow-md: 0 10px 30px -10px rgba(10,31,21,0.18), 0 2px 6px rgba(10,31,21,0.05);
+  --shadow-lg: 0 30px 80px -20px rgba(10,31,21,0.25);
+  --sans: 'Manrope', system-ui, sans-serif;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: var(--sans); color: var(--ink); background: var(--bg); }
+a { text-decoration: none; color: inherit; }
+button { font-family: var(--sans); }
