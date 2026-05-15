@@ -23,12 +23,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   function login(access: string, refresh: string) {
     localStorage.setItem("access_token", access);
     localStorage.setItem("refresh_token", refresh);
+    document.cookie = `auth_token=${access}; path=/; max-age=900; SameSite=Lax`;
     apiFetch<User>("/api/auth/me").then(setUser);
   }
 
   function logout() {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
+    document.cookie = "auth_token=; path=/; max-age=0";
     setUser(null);
   }
 
