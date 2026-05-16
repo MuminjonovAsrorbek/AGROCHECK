@@ -1,8 +1,19 @@
 import io
+import json
 from minio import Minio
 from ..core.config import settings
 
 _client: Minio | None = None
+
+_PUBLIC_READ_POLICY = json.dumps({
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Effect": "Allow",
+        "Principal": {"AWS": ["*"]},
+        "Action": ["s3:GetObject"],
+        "Resource": [f"arn:aws:s3:::{settings.minio_bucket}/*"],
+    }]
+})
 
 
 def get_minio() -> Minio:
@@ -16,6 +27,7 @@ def get_minio() -> Minio:
         )
         if not _client.bucket_exists(settings.minio_bucket):
             _client.make_bucket(settings.minio_bucket)
+        _client.set_bucket_policy(settings.minio_bucket, _PUBLIC_READ_POLICY)
     return _client
 
 
