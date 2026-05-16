@@ -67,7 +67,7 @@ function LeafSample({ size = 360, showSpots = false }: { size?: number; showSpot
   );
 }
 
-interface RecentScan { id: string; plant: string; disease_name: string; confidence: number; is_healthy: boolean; created_at: string; }
+interface RecentScan { id: string; plant: string; disease_name: string; confidence: number; is_healthy: boolean; created_at: string; image_url: string; }
 
 function RecentScans({ lang }: { lang: Lang }) {
   const t = T[lang];
@@ -80,6 +80,7 @@ function RecentScans({ lang }: { lang: Lang }) {
   function timeAgo(iso: string) {
     const diff = Date.now() - new Date(iso).getTime();
     const h = Math.floor(diff / 3600000);
+    if (h < 1) return lang === "UZ" ? "Hozirgina" : "Just now";
     if (h < 24) return lang === "UZ" ? `${h} soat oldin` : `${h}h ago`;
     return t.yesterday;
   }
@@ -97,13 +98,15 @@ function RecentScans({ lang }: { lang: Lang }) {
           </p>
         )}
         {scans.map(scan => {
-          const status = scan.is_healthy ? "ok" : scan.confidence > 90 ? "bad" : "warn";
-          const color = status === "ok" ? "#0a3d2e" : status === "warn" ? "#d4a017" : "#b91c1c";
-          const bg = status === "ok" ? "rgba(10,61,46,.06)" : status === "warn" ? "rgba(212,160,23,.10)" : "rgba(185,28,28,.08)";
+          const status = scan.is_healthy ? "ok" : scan.confidence < 70 ? "lowconf" : scan.confidence > 90 ? "bad" : "warn";
+          const color = status === "ok" ? "#0a3d2e" : status === "warn" ? "#d4a017" : status === "lowconf" ? "#9ca3af" : "#b91c1c";
+          const bg = status === "ok" ? "rgba(10,61,46,.06)" : status === "warn" ? "rgba(212,160,23,.10)" : status === "lowconf" ? "rgba(156,163,175,.10)" : "rgba(185,28,28,.08)";
+          const imageUrl = scan.image_url.replace("minio:9000", "localhost:9200");
           return (
             <a key={scan.id} href={`/scan/${scan.id}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: 8, borderRadius: 10, textDecoration: "none", cursor: "pointer" }}>
-              <div style={{ width: 42, height: 42, borderRadius: 10, overflow: "hidden", background: "#0a3d2e", flexShrink: 0 }}>
-                <LeafSample size={42} showSpots={!scan.is_healthy} />
+              <div style={{ width: 44, height: 44, borderRadius: 10, overflow: "hidden", background: "#0a3d2e", flexShrink: 0 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt={scan.plant} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{scan.plant}</div>
@@ -121,12 +124,6 @@ function RecentScans({ lang }: { lang: Lang }) {
   );
 }
 
-const SAMPLES = [
-  { uzName: "Pomidor bargi", enName: "Tomato leaf", tag: "Early Blight", spots: true },
-  { uzName: "Olma bargi",    enName: "Apple leaf",  tag: "Cedar Rust",   spots: false },
-  { uzName: "Uzum bargi",    enName: "Grape leaf",  tag: "Mildew",       spots: true },
-  { uzName: "Kartoshka",     enName: "Potato",      tag: "Late Blight",  spots: true },
-];
 
 export default function ScanPage() {
   const [lang, setLang] = useState<Lang>("UZ");
@@ -274,27 +271,6 @@ export default function ScanPage() {
           </div>
 
           <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-
-          {/* Sample images */}
-          <div style={{ marginTop: 28 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontFamily: "var(--sans)", fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{t.sampleTitle}</h3>
-              <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t.free}</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
-              {SAMPLES.map((s, i) => (
-                <button key={i} style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: 10, cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ height: 80, borderRadius: 10, overflow: "hidden", background: "#0a3d2e", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <LeafSample size={120} showSpots={s.spots} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>{lang === "UZ" ? s.uzName : s.enName}</div>
-                    <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: "var(--muted)", marginTop: 2, textTransform: "uppercase", letterSpacing: ".06em" }}>{s.tag}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Recent scans sidebar */}

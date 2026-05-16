@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_PATHS = ["/auth"];
-const PROTECTED_PATHS = ["/scan", "/history", "/dashboard"];
+const PROTECTED_PATHS = ["/scan", "/history", "/dashboard", "/profile"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
