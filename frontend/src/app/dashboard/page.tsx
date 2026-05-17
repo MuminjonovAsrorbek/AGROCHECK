@@ -10,6 +10,10 @@ interface Stats {
   avg_confidence: number; scan_count_month: number; plan_limit: number | null;
   trend: Record<string, { total: number; diseased: number }>;
   disease_distribution: { name: string; count: number }[];
+  plant_types: { name: string; count: number; healthy: number }[];
+  activity_week: { day: string; count: number; today: boolean }[];
+  streak_current: number;
+  streak_longest: number;
 }
 
 const SPARK_COLORS = ["#0a3d2e", "#d4a017", "#84cc16", "#1f8a5b"];
@@ -21,19 +25,6 @@ const SPARK_MOCK: Record<string, number[]> = {
 };
 
 const DONUT_COLORS = ["#0a3d2e", "#d4a017", "#84cc16", "#1f8a5b", "#b8860b", "#cdd9d3"];
-
-const PLANT_TYPES = [
-  { name: "Pomidor",   en: "Tomato",   count: 48, healthy: 18 },
-  { name: "Olma",      en: "Apple",    count: 32, healthy: 11 },
-  { name: "Uzum",      en: "Grape",    count: 24, healthy: 14 },
-  { name: "Bodring",   en: "Cucumber", count: 18, healthy: 10 },
-  { name: "Kartoshka", en: "Potato",   count: 12, healthy: 4  },
-];
-
-const WEEKDAYS = [
-  { d: "Du", v: 3 }, { d: "Se", v: 5 }, { d: "Ch", v: 2 },
-  { d: "Pa", v: 7 }, { d: "Ju", v: 4 }, { d: "Sh", v: 6, today: true }, { d: "Ya", v: 0 },
-];
 
 function Sparkline({ data, color = "var(--primary)", width = 80, height = 32 }: { data: number[]; color?: string; width?: number; height?: number }) {
   const max = Math.max(...data);
@@ -238,8 +229,8 @@ export default function DashboardPage() {
     ? stats.disease_distribution.filter(d => d.name.toLowerCase().includes(q))
     : stats.disease_distribution;
   const filteredPlantTypes = q
-    ? PLANT_TYPES.filter(p => p.name.toLowerCase().includes(q) || p.en.toLowerCase().includes(q))
-    : PLANT_TYPES;
+    ? stats.plant_types.filter(p => p.name.toLowerCase().includes(q))
+    : stats.plant_types;
 
   const kpis = [
     {
@@ -432,7 +423,7 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: ".10em" }}>Ketma-ket kun</div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-                    <span style={{ fontFamily: "var(--serif)", fontSize: 44, letterSpacing: "-0.02em", lineHeight: 1 }}>{Math.min(stats.total, 12)}</span>
+                    <span style={{ fontFamily: "var(--serif)", fontSize: 44, letterSpacing: "-0.02em", lineHeight: 1 }}>{stats.streak_current}</span>
                     <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>kun</span>
                   </div>
                 </div>
@@ -440,21 +431,22 @@ export default function DashboardPage() {
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><path d="M14 2v6h6M7 11l3 3 7-7" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9" /></svg>
                 </div>
               </div>
-              <div style={{ position: "relative", fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 8 }}>Eng uzun: 28 kun</div>
+              <div style={{ position: "relative", fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 8 }}>Eng uzun: {stats.streak_longest} kun</div>
             </div>
 
             {/* Weekday bars */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", height: 90, padding: "0 4px" }}>
-              {WEEKDAYS.map((day, i) => {
-                const h = (day.v / 7) * 70 + (day.v > 0 ? 4 : 0);
+              {stats.activity_week.map((day, i) => {
+                const maxWeek = Math.max(1, ...stats.activity_week.map(d => d.count));
+                const h = (day.count / maxWeek) * 70 + (day.count > 0 ? 4 : 0);
                 return (
                   <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: 1 }}>
-                    <div style={{ width: 18, height: h || 4, borderRadius: 4, background: day.today ? "var(--accent)" : "var(--primary)", opacity: day.v === 0 ? 0.15 : 1, position: "relative" }}>
-                      {day.v > 0 && (
-                        <span style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", fontFamily: "var(--mono)", fontSize: 10, color: day.today ? "#8a6610" : "var(--ink)", fontWeight: 600 }}>{day.v}</span>
+                    <div style={{ width: 18, height: h || 4, borderRadius: 4, background: day.today ? "var(--accent)" : "var(--primary)", opacity: day.count === 0 ? 0.15 : 1, position: "relative" }}>
+                      {day.count > 0 && (
+                        <span style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", fontFamily: "var(--mono)", fontSize: 10, color: day.today ? "#8a6610" : "var(--ink)", fontWeight: 600 }}>{day.count}</span>
                       )}
                     </div>
-                    <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: day.today ? "var(--accent)" : "var(--muted)", fontWeight: day.today ? 700 : 400, textTransform: "uppercase", letterSpacing: ".04em" }}>{day.d}</div>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: day.today ? "var(--accent)" : "var(--muted)", fontWeight: day.today ? 700 : 400, textTransform: "uppercase", letterSpacing: ".04em" }}>{day.day}</div>
                   </div>
                 );
               })}
@@ -484,7 +476,7 @@ function StatsPdfTemplate({
   range: number;
   stats: Stats;
   diseases: { name: string; count: number }[];
-  plants: { name: string; en: string; count: number; healthy: number }[];
+  plants: { name: string; count: number; healthy: number }[];
 }) {
   const healthyPct = stats.total ? Math.round((stats.healthy / stats.total) * 100) : 0;
   return (

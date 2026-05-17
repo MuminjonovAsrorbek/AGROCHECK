@@ -48,6 +48,51 @@ async def get_stats(
         for name, count in sorted(disease_counts.items(), key=lambda x: -x[1])
     ]
 
+    plant_counts: dict[str, dict[str, int]] = {}
+    for s in scans:
+        if s.plant not in plant_counts:
+            plant_counts[s.plant] = {"count": 0, "healthy": 0}
+        plant_counts[s.plant]["count"] += 1
+        if s.is_healthy:
+            plant_counts[s.plant]["healthy"] += 1
+    plant_types = [
+        {"name": name, "count": vals["count"], "healthy": vals["healthy"]}
+        for name, vals in sorted(plant_counts.items(), key=lambda x: -x[1]["count"])
+    ][:8]
+
+    now = datetime.now(timezone.utc)
+    week_start = now - timedelta(days=6)
+    week_scans = [s for s in scans if s.created_at >= week_start]
+    day_codes = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"]
+    activity_week = []
+    for i in range(7):
+        d = (week_start + timedelta(days=i)).date()
+        count = sum(1 for s in week_scans if s.created_at.date() == d)
+        activity_week.append({"day": day_codes[i], "count": count, "today": d == now.date()})
+
+    all_scans_result = await db.execute(
+        select(Scan.created_at).where(Scan.user_id == user.id).order_by(Scan.created_at.asc())
+    )
+    scan_dates = sorted({row[0].date() for row in all_scans_result.all()})
+    streak_current = 0
+    streak_longest = 0
+    if scan_dates:
+        current_run = 1
+        streak_longest = 1
+        for i in range(1, len(scan_dates)):
+            if scan_dates[i] == scan_dates[i - 1] + timedelta(days=1):
+                current_run += 1
+            else:
+                current_run = 1
+            streak_longest = max(streak_longest, current_run)
+
+        streak_current = 0
+        cursor = now.date()
+        date_set = set(scan_dates)
+        while cursor in date_set:
+            streak_current += 1
+            cursor -= timedelta(days=1)
+
     all_result = await db.execute(select(func.count()).where(Scan.user_id == user.id))
     all_time_total = all_result.scalar() or 0
 
@@ -61,4 +106,8 @@ async def get_stats(
         "plan_limit": 10 if user.plan == "free" else None,
         "trend": trend,
         "disease_distribution": disease_distribution,
+        "plant_types": plant_types,
+        "activity_week": activity_week,
+        "streak_current": streak_current,
+        "streak_longest": streak_longest,
     }
