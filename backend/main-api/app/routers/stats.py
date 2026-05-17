@@ -30,6 +30,10 @@ async def get_stats(
     avg_confidence = round(sum(s.confidence for s in scans) / total, 1) if total else 0.0
 
     trend: dict[str, dict] = {}
+    for i in range(range_days):
+        day_dt = (since + timedelta(days=i)).date()
+        key = day_dt.strftime("%Y-%m-%d")
+        trend[key] = {"total": 0, "diseased": 0}
     for s in scans:
         day = s.created_at.strftime("%Y-%m-%d")
         if day not in trend:
