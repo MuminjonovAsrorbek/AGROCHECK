@@ -13,13 +13,13 @@ const T = {
     headline: "O'simlik bargi rasmini yuklang",
     sub: "Sun'iy intellekt 3 soniyada kasallikni aniqlab beradi",
     chooseFile: "Fayl tanlash", takePhoto: "Suratga olish",
-    fileHint: "JPG, PNG · maksimal 10 MB",
+    fileHint: "JPG, PNG · Maksimal 10 MB",
     sampleTitle: "Yoki namuna rasmlardan birini tanlang", free: "Bepul",
     recentTitle: "Oxirgi tahlillar", seeAll: "Hammasini ko'rish",
     thisMonth: "Bu oyda", cancel: "Bekor qilish",
     analyzing: "AI tahlil qilmoqda", analyzingSub: "Tasvir Qwen 3.5 modeli orqali tahlil qilinmoqda",
     steps: ["Tasvirni qayta ishlash", "Xususiyatlarni ajratish", "Klassifikatsiya", "Davolash usulini tayyorlash"],
-    yesterday: "Kecha",
+    yesterday: "Kecha", hoursAgo: "soat oldin", justNow: "Hozirgina",
   },
   EN: {
     title: "New scan", breadcrumb: "Home · Scan",
@@ -32,9 +32,48 @@ const T = {
     thisMonth: "This month", cancel: "Cancel",
     analyzing: "AI is analyzing", analyzingSub: "Running image through the Qwen 3.5 model",
     steps: ["Preprocessing image", "Extracting features", "Classification", "Preparing treatment plan"],
-    yesterday: "Yesterday",
+    yesterday: "Yesterday", hoursAgo: "h ago", justNow: "Just now",
   },
 };
+
+const SAMPLES = [
+  { plantUZ: "Pomidor bargi", plantEN: "Tomato leaf", disease: "EARLY BLIGHT",   color: "#7c3f0a", spots: true  },
+  { plantUZ: "Olma bargi",    plantEN: "Apple leaf",  disease: "CEDAR RUST",     color: "#8b6914", spots: true  },
+  { plantUZ: "Uzum bargi",    plantEN: "Grape leaf",  disease: "MILDEW",         color: "#3a6b1a", spots: false },
+  { plantUZ: "Kartoshka",     plantEN: "Potato leaf", disease: "LATE BLIGHT",    color: "#1a5a3a", spots: true  },
+];
+
+function LeafCard({ sample, size = 120, lang }: { sample: typeof SAMPLES[0]; size?: number; lang: Lang }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, cursor: "pointer" }}>
+      <div style={{ borderRadius: 16, overflow: "hidden", background: `linear-gradient(155deg,${sample.color},#0a3d1e)`, aspectRatio: "1/1", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+        <svg viewBox="0 0 200 200" width={size} height={size}>
+          <defs>
+            <radialGradient id={`g${sample.disease}`} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#2a6b3a" />
+              <stop offset="100%" stopColor="#0a3d1e" />
+            </radialGradient>
+          </defs>
+          <path d="M100 20 C 55 30, 28 80, 36 135 C 44 165, 85 190, 110 185 C 155 175, 180 130, 180 85 C 180 45, 150 22, 100 20 Z" fill={`url(#g${sample.disease})`} />
+          <path d="M100 20 C 55 30, 28 80, 36 135 C 44 165, 85 190, 110 185 C 155 175, 180 130, 180 85 C 180 45, 150 22, 100 20 Z" fill="rgba(132,204,22,0.06)" />
+          <path d="M100 20 Q 105 100, 97 185" stroke="rgba(255,255,255,.12)" strokeWidth="1.5" fill="none" />
+          {sample.spots && (
+            <>
+              <circle cx="138" cy="90" r="11" fill={sample.color} opacity="0.85" />
+              <circle cx="138" cy="90" r="6"  fill={sample.color} opacity="1" />
+              <circle cx="78"  cy="140" r="8"  fill={sample.color} opacity="0.75" />
+              <circle cx="118" cy="155" r="9"  fill={sample.color} opacity="0.8" />
+            </>
+          )}
+        </svg>
+      </div>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{lang === "UZ" ? sample.plantUZ : sample.plantEN}</div>
+        <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".06em", marginTop: 2 }}>{sample.disease}</div>
+      </div>
+    </div>
+  );
+}
 
 function LeafSample({ size = 360, showSpots = false }: { size?: number; showSpots?: boolean }) {
   return (
@@ -56,11 +95,11 @@ function LeafSample({ size = 360, showSpots = false }: { size?: number; showSpot
         <>
           <circle cx="270" cy="160" r="18" fill="#3a2a0a" opacity="0.7" />
           <circle cx="270" cy="160" r="11" fill="#5a3a12" />
-          <circle cx="270" cy="160" r="5" fill="#8b5a1a" />
+          <circle cx="270" cy="160" r="5"  fill="#8b5a1a" />
           <circle cx="150" cy="240" r="12" fill="#3a2a0a" opacity="0.6" />
-          <circle cx="150" cy="240" r="6" fill="#5a3a12" />
+          <circle cx="150" cy="240" r="6"  fill="#5a3a12" />
           <circle cx="220" cy="300" r="14" fill="#3a2a0a" opacity="0.6" />
-          <circle cx="220" cy="300" r="8" fill="#5a3a12" />
+          <circle cx="220" cy="300" r="8"  fill="#5a3a12" />
         </>
       )}
     </svg>
@@ -72,26 +111,35 @@ interface RecentScan { id: string; plant: string; disease_name: string; confiden
 function RecentScans({ lang }: { lang: Lang }) {
   const t = T[lang];
   const [scans, setScans] = useState<RecentScan[]>([]);
+  const [monthCount, setMonthCount] = useState<number>(0);
+  const [monthLimit, setMonthLimit] = useState<number | null>(null);
 
   useEffect(() => {
     apiFetch<RecentScan[]>("/api/scans/?limit=5").then(setScans).catch(() => {});
+    apiFetch<{ scan_count_month: number; plan_limit: number | null }>("/api/stats/?range=30")
+      .then(d => { setMonthCount(d.scan_count_month); setMonthLimit(d.plan_limit); })
+      .catch(() => {});
   }, []);
 
   function timeAgo(iso: string) {
     const diff = Date.now() - new Date(iso).getTime();
     const h = Math.floor(diff / 3600000);
-    if (h < 1) return lang === "UZ" ? "Hozirgina" : "Just now";
-    if (h < 24) return lang === "UZ" ? `${h} soat oldin` : `${h}h ago`;
+    if (h < 1) return t.justNow;
+    if (h < 24) return `${h} ${t.hoursAgo}`;
     return t.yesterday;
   }
 
   return (
-    <aside style={{ background: "#fff", borderRadius: 22, border: "1px solid var(--line)", padding: 22, height: "fit-content", position: "sticky", top: 20 }}>
+    <aside style={{
+      background: "#fff", borderRadius: 22, border: "1px solid var(--line)",
+      padding: 22, display: "flex", flexDirection: "column", gap: 0,
+      alignSelf: "stretch",
+    }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <h3 style={{ margin: 0, fontFamily: "var(--sans)", fontSize: 14, fontWeight: 600 }}>{t.recentTitle}</h3>
         <a href="/history" style={{ fontSize: 12, color: "var(--primary)", textDecoration: "none", fontWeight: 500 }}>{t.seeAll}</a>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
         {scans.length === 0 && (
           <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
             {lang === "UZ" ? "Hali tahlil yo'q" : "No scans yet"}
@@ -100,10 +148,10 @@ function RecentScans({ lang }: { lang: Lang }) {
         {scans.map(scan => {
           const status = scan.is_healthy ? "ok" : scan.confidence < 70 ? "lowconf" : scan.confidence > 90 ? "bad" : "warn";
           const color = status === "ok" ? "#0a3d2e" : status === "warn" ? "#d4a017" : status === "lowconf" ? "#9ca3af" : "#b91c1c";
-          const bg = status === "ok" ? "rgba(10,61,46,.06)" : status === "warn" ? "rgba(212,160,23,.10)" : status === "lowconf" ? "rgba(156,163,175,.10)" : "rgba(185,28,28,.08)";
+          const bg    = status === "ok" ? "rgba(10,61,46,.06)" : status === "warn" ? "rgba(212,160,23,.10)" : status === "lowconf" ? "rgba(156,163,175,.10)" : "rgba(185,28,28,.08)";
           const imageUrl = scan.image_url.replace("minio:9000", "localhost:9200");
           return (
-            <a key={scan.id} href={`/scan/${scan.id}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: 8, borderRadius: 10, textDecoration: "none", cursor: "pointer" }}>
+            <a key={scan.id} href={`/scan/${scan.id}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", borderRadius: 10, textDecoration: "none", cursor: "pointer" }}>
               <div style={{ width: 44, height: 44, borderRadius: 10, overflow: "hidden", background: "#0a3d2e", flexShrink: 0 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imageUrl} alt={scan.plant} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -120,6 +168,18 @@ function RecentScans({ lang }: { lang: Lang }) {
           );
         })}
       </div>
+
+      {monthLimit !== null && (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+          <div style={{ fontSize: 10, fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".08em", color: "var(--muted)", marginBottom: 6 }}>{t.thisMonth}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--serif)", letterSpacing: "-0.01em", color: "var(--ink)" }}>
+            {monthCount} / {monthLimit}
+          </div>
+          <div style={{ height: 4, borderRadius: 4, background: "var(--line)", marginTop: 8, overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: 4, background: "var(--primary)", width: `${Math.min(100, (monthCount / monthLimit) * 100)}%`, transition: "width .4s ease" }} />
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
@@ -159,22 +219,17 @@ export default function ScanPage() {
           @keyframes barProg { 0%{width:0%} 100%{width:64%} }
           .progBar{animation:barProg 2s ease-out forwards}
         `}</style>
-        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 28, maxWidth: 1200 }}>
-          {/* Image panel */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 28, flex: 1 }}>
           <div style={{ position: "relative", borderRadius: 22, overflow: "hidden", background: "linear-gradient(155deg,#0a3d2e,#06291a)", aspectRatio: "4/5", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {/* Corner brackets */}
             {[{ top: 16, left: 16 }, { top: 16, right: 16 }, { bottom: 16, left: 16 }, { bottom: 16, right: 16 }].map((p, i) => (
               <div key={i} style={{ position: "absolute", width: 28, height: 28, borderTop: i < 2 ? "2px solid var(--accent)" : "none", borderBottom: i >= 2 ? "2px solid var(--accent)" : "none", borderLeft: i % 2 === 0 ? "2px solid var(--accent)" : "none", borderRight: i % 2 === 1 ? "2px solid var(--accent)" : "none", ...p }} />
             ))}
             <LeafSample size={420} showSpots />
-            {/* Scan line */}
             <div style={{ position: "absolute", left: 24, right: 24, height: 2, background: "linear-gradient(90deg,transparent,var(--accent),transparent)", boxShadow: "0 0 20px var(--accent)", animation: "scanmove 2.4s ease-in-out infinite" }} />
-            {/* Scanning badge */}
             <div style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 999, background: "rgba(0,0,0,.4)", color: "#fff", fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid rgba(255,255,255,.10)", backdropFilter: "blur(8px)" }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#84cc16", animation: "pulse 1s ease-in-out infinite" }} />
               Scanning
             </div>
-            {/* HUD chips */}
             <div style={{ position: "absolute", bottom: 20, left: 20, right: 20, display: "flex", justifyContent: "space-between", color: "#fff", fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".06em" }}>
               {[{ label: "Image", value: "1024 × 1024" }, { label: "Model", value: "Qwen 3.5 · 4B" }].map(chip => (
                 <div key={chip.label} style={{ background: "rgba(0,0,0,.4)", backdropFilter: "blur(8px)", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,.10)" }}>
@@ -185,7 +240,6 @@ export default function ScanPage() {
             </div>
           </div>
 
-          {/* Steps panel */}
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 24 }}>
             <div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 10px", borderRadius: 999, background: "rgba(132,204,22,.12)", color: "#3f6b13", fontSize: 11, fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 14 }}>
@@ -197,7 +251,7 @@ export default function ScanPage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {t.steps.map((s, i) => {
-                const done = i < step;
+                const done   = i < step;
                 const active = i === step;
                 return (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -231,19 +285,20 @@ export default function ScanPage() {
   /* ── IDLE / ERROR SCREEN ── */
   return (
     <Shell title={t.title} breadcrumb={t.breadcrumb} lang={lang} onLangChange={setLang}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 28, maxWidth: 1300 }}>
-        <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, flex: 1, alignItems: "start" }}>
+
+        {/* Left column: drop zone + sample images */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
           {/* Drop zone */}
           <div
             onDragOver={e => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}
             onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-            style={{ borderRadius: 22, padding: "56px 40px", border: `2px dashed ${drag ? "var(--primary)" : "rgba(10,61,46,.18)"}`, background: drag ? "rgba(10,61,46,.04)" : "#fff", transition: "all .2s ease", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative", overflow: "hidden" }}>
-            {/* Ambient glows */}
+            style={{ borderRadius: 22, padding: "52px 40px", border: `2px dashed ${drag ? "var(--primary)" : "rgba(10,61,46,.18)"}`, background: drag ? "rgba(10,61,46,.04)" : "#fff", transition: "all .2s ease", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle,rgba(132,204,22,.10),transparent 60%)", filter: "blur(20px)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", bottom: -50, left: -50, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle,rgba(212,160,23,.08),transparent 60%)", filter: "blur(20px)", pointerEvents: "none" }} />
 
-            {/* Icon */}
             <div style={{ position: "relative", width: 84, height: 84, borderRadius: 22, background: "linear-gradient(155deg,#0a3d2e,#134d3a)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 40px -10px rgba(10,61,46,.4)" }}>
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M12 16V4" /><path d="m6 10 6-6 6 6" /><path d="M3 16v4a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-4" />
@@ -254,7 +309,6 @@ export default function ScanPage() {
             <h2 style={{ position: "relative", fontFamily: "var(--serif)", fontSize: 36, margin: "24px 0 6px", letterSpacing: "-0.02em", lineHeight: 1.05 }}>{t.headline}</h2>
             <p style={{ position: "relative", color: "var(--muted)", fontSize: 15, margin: "0 0 24px", maxWidth: 420 }}>{t.sub}</p>
 
-            {/* Buttons */}
             <div style={{ position: "relative", display: "flex", gap: 10, marginBottom: 16 }}>
               <button onClick={() => inputRef.current?.click()} style={{ height: 50, padding: "0 22px", borderRadius: 12, border: "none", cursor: "pointer", background: "var(--primary)", color: "#fff", fontFamily: "var(--sans)", fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 10 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5-5 5 5M12 15V3" /></svg>
@@ -270,12 +324,25 @@ export default function ScanPage() {
             {(stage === "error" && error) && <p style={{ color: "#b91c1c", fontSize: 13, marginTop: 12, position: "relative" }}>{error}</p>}
           </div>
 
-          <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+          {/* Sample images section */}
+          <div style={{ background: "#fff", borderRadius: 22, border: "1px solid var(--line)", padding: "20px 24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{t.sampleTitle}</span>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".08em", padding: "3px 8px", borderRadius: 999, background: "rgba(132,204,22,.12)", color: "#3f6b13" }}>{t.free}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+              {SAMPLES.map(sample => (
+                <LeafCard key={sample.disease} sample={sample} lang={lang} size={100} />
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Recent scans sidebar */}
+        {/* Right: Recent scans sidebar */}
         <RecentScans lang={lang} />
       </div>
+
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
     </Shell>
   );
 }

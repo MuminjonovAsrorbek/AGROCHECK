@@ -1,64 +1,108 @@
-import hashlib
 import ipaddress
+import json
 import urllib.parse
-import requests
 from io import BytesIO
+from pathlib import Path
+
+import numpy as np
+import onnxruntime as ort
+import requests
 from PIL import Image
 
 MAX_IMAGE_BYTES = 50 * 1024 * 1024
 
-DISEASE_CLASSES = [
-    ("Apple", "Apple Scab", "Venturia inaequalis", False, "moderate"),
-    ("Apple", "Black Rot", "Botryosphaeria obtusa", False, "severe"),
-    ("Apple", "Cedar Apple Rust", "Gymnosporangium juniperi-virginianae", False, "moderate"),
-    ("Apple", "Healthy", None, True, "healthy"),
-    ("Blueberry", "Healthy", None, True, "healthy"),
-    ("Cherry", "Powdery Mildew", "Podosphaera clandestina", False, "moderate"),
-    ("Cherry", "Healthy", None, True, "healthy"),
-    ("Corn", "Cercospora Leaf Spot", "Cercospora zeae-maydis", False, "moderate"),
-    ("Corn", "Common Rust", "Puccinia sorghi", False, "moderate"),
-    ("Corn", "Northern Leaf Blight", "Exserohilum turcicum", False, "severe"),
-    ("Corn", "Healthy", None, True, "healthy"),
-    ("Grape", "Black Rot", "Guignardia bidwellii", False, "severe"),
-    ("Grape", "Esca (Black Measles)", "Phaeoacremonium aleophilum", False, "severe"),
-    ("Grape", "Leaf Blight", "Isariopsis clavispora", False, "moderate"),
-    ("Grape", "Healthy", None, True, "healthy"),
-    ("Orange", "Huanglongbing (Citrus Greening)", "Candidatus Liberibacter asiaticus", False, "severe"),
-    ("Peach", "Bacterial Spot", "Xanthomonas campestris", False, "moderate"),
-    ("Peach", "Healthy", None, True, "healthy"),
-    ("Pepper", "Bacterial Spot", "Xanthomonas campestris pv. vesicatoria", False, "moderate"),
-    ("Pepper", "Healthy", None, True, "healthy"),
-    ("Potato", "Early Blight", "Alternaria solani", False, "moderate"),
-    ("Potato", "Late Blight", "Phytophthora infestans", False, "severe"),
-    ("Potato", "Healthy", None, True, "healthy"),
-    ("Raspberry", "Healthy", None, True, "healthy"),
-    ("Soybean", "Healthy", None, True, "healthy"),
-    ("Squash", "Powdery Mildew", "Erysiphe cichoracearum", False, "mild"),
-    ("Strawberry", "Leaf Scorch", "Diplocarpon earliana", False, "moderate"),
-    ("Strawberry", "Healthy", None, True, "healthy"),
-    ("Tomato", "Bacterial Spot", "Xanthomonas vesicatoria", False, "moderate"),
-    ("Tomato", "Early Blight", "Alternaria solani", False, "moderate"),
-    ("Tomato", "Late Blight", "Phytophthora infestans", False, "severe"),
-    ("Tomato", "Leaf Mold", "Fulvia fulva", False, "mild"),
-    ("Tomato", "Septoria Leaf Spot", "Septoria lycopersici", False, "moderate"),
-    ("Tomato", "Spider Mites", None, False, "mild"),
-    ("Tomato", "Target Spot", "Corynespora cassiicola", False, "moderate"),
-    ("Tomato", "Yellow Leaf Curl Virus", "Tomato yellow leaf curl virus", False, "severe"),
-    ("Tomato", "Mosaic Virus", "Tomato mosaic virus", False, "moderate"),
-    ("Tomato", "Healthy", None, True, "healthy"),
-]
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+IMAGENET_STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+SEVERITY_MAP = {
+    "healthy":       "healthy",
+    "scab":          "moderate",
+    "black rot":     "severe",
+    "rust":          "moderate",
+    "powdery":       "moderate",
+    "blight":        "moderate",
+    "late blight":   "severe",
+    "northern":      "severe",
+    "esca":          "severe",
+    "huanglongbing": "severe",
+    "greening":      "severe",
+    "bacterial":     "moderate",
+    "mold":          "mild",
+    "septoria":      "moderate",
+    "spider":        "mild",
+    "target":        "moderate",
+    "mosaic":        "moderate",
+    "yellow leaf":   "severe",
+    "curl":          "severe",
+    "scorch":        "moderate",
+}
+
+
+def _parse_class_name(class_dir: str):
+    parts = class_dir.split("___", 1)
+    plant   = parts[0].replace("_", " ").replace(",", "").strip()
+    disease = parts[1].replace("_", " ").strip().title() if len(parts) > 1 else "Unknown"
+    is_healthy = "healthy" in disease.lower()
+    severity = "healthy"
+    if not is_healthy:
+        disease_lower = disease.lower()
+        for keyword, sev in SEVERITY_MAP.items():
+            if keyword in disease_lower:
+                severity = sev
+                break
+        else:
+            severity = "moderate"
+    return plant, disease, is_healthy, severity
 
 
 class PlantDiseasePredictor:
     def __init__(self):
-        # Lightweight: no model download, instant init
+        model_dir  = Path(__file__).parent / "models"
+        onnx_path  = model_dir / "plant_disease_model.onnx"
+        class_path = model_dir / "classes.json"
+
+        if not onnx_path.exists():
+            raise FileNotFoundError(
+                f"ONNX model not found at {onnx_path}.\n"
+                "Run training first:\n"
+                "  cd training && python train.py\n"
+                "  python export.py --checkpoint output/best_model.pth\n"
+                "Then copy output/*.onnx and output/classes.json to model-worker/app/models/"
+            )
+
+        self._session = ort.InferenceSession(
+            str(onnx_path),
+            providers=["CUDAExecutionProvider", "CPUExecutionProvider"]
+        )
+        self._input_name = self._session.get_inputs()[0].name
+
+        with open(class_path) as f:
+            self._classes = json.load(f)
+
+        self._class_meta = [_parse_class_name(c) for c in self._classes]
         self.ready = True
+        print(f"[predictor] ONNX model loaded ({len(self._classes)} classes)")
+
+    def _preprocess(self, image_data: bytes) -> np.ndarray:
+        img = Image.open(BytesIO(image_data)).convert("RGB")
+        w, h = img.size
+        short = min(w, h)
+        scale = 256 / short
+        new_w, new_h = int(w * scale), int(h * scale)
+        img = img.resize((new_w, new_h), Image.BILINEAR)
+        left = (new_w - 224) // 2
+        top  = (new_h - 224) // 2
+        img = img.crop((left, top, left + 224, top + 224))
+
+        arr = np.array(img, dtype=np.float32) / 255.0
+        arr = (arr - IMAGENET_MEAN) / IMAGENET_STD
+        arr = arr.transpose(2, 0, 1)[np.newaxis]
+        return arr
 
     def _load_image(self, image_url: str) -> bytes:
         parsed = urllib.parse.urlparse(image_url)
         if parsed.scheme not in ("http", "https"):
             raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
-
         hostname = parsed.hostname or ""
         if hostname not in ("minio", "localhost", "127.0.0.1"):
             try:
@@ -68,12 +112,10 @@ class PlantDiseasePredictor:
             except ValueError as e:
                 if "Private IP" in str(e):
                     raise
-
         response = requests.get(image_url, timeout=30, stream=True)
         response.raise_for_status()
-
         data = b""
-        for chunk in response.iter_content(chunk_size=8192):
+        for chunk in response.iter_content(8192):
             data += chunk
             if len(data) > MAX_IMAGE_BYTES:
                 raise ValueError("Image too large (max 50 MB)")
@@ -82,41 +124,44 @@ class PlantDiseasePredictor:
     def predict(self, image_url: str) -> dict:
         image_data = self._load_image(image_url)
 
-        # Validate image
         try:
-            img = Image.open(BytesIO(image_data)).convert("RGB")
-            img.verify()
+            Image.open(BytesIO(image_data)).verify()
         except Exception:
             raise ValueError("Invalid or corrupted image file")
 
-        # Deterministic class selection based on image content hash
-        h = int(hashlib.sha256(image_data).hexdigest(), 16)
+        inp    = self._preprocess(image_data)
+        logits = self._session.run(None, {self._input_name: inp})[0][0]
+        probs  = self._softmax(logits)
 
-        # Pick top class
-        idx = h % len(DISEASE_CLASSES)
-        plant, disease, latin, is_healthy, severity = DISEASE_CLASSES[idx]
+        top4_idx = np.argsort(probs)[::-1][:4]
+        top_idx  = int(top4_idx[0])
 
-        # Confidence: 72–97%
-        base_confidence = 72.0 + (h % 25) + (h >> 8 & 0xFF) / 100.0
-        confidence = round(min(base_confidence, 97.4), 1)
+        plant, disease, is_healthy, severity = self._class_meta[top_idx]
+        confidence = round(float(probs[top_idx]) * 100, 1)
 
-        # Build top-3 predictions from neighboring classes
         predictions = []
-        for i in range(4):
-            ci = (idx + i) % len(DISEASE_CLASSES)
-            p, d, l, ih, _ = DISEASE_CLASSES[ci]
-            c = confidence if i == 0 else round(confidence * (0.85 - i * 0.12), 1)
-            predictions.append({"name": f"{p} · {d}", "latin": l, "confidence": max(c, 1.0)})
+        for idx in top4_idx:
+            p, d, _, _ = self._class_meta[int(idx)]
+            predictions.append({
+                "name":       f"{p} · {d}",
+                "latin":      None,
+                "confidence": round(float(probs[idx]) * 100, 1),
+            })
 
         return {
-            "disease": disease,
-            "disease_latin": latin,
-            "plant": plant,
-            "confidence": confidence,
-            "severity": severity,
-            "is_healthy": is_healthy,
-            "predictions": predictions,
+            "disease":       disease,
+            "disease_latin": None,
+            "plant":         plant,
+            "confidence":    confidence,
+            "severity":      severity,
+            "is_healthy":    is_healthy,
+            "predictions":   predictions,
         }
+
+    @staticmethod
+    def _softmax(x: np.ndarray) -> np.ndarray:
+        e = np.exp(x - x.max())
+        return e / e.sum()
 
 
 _predictor: PlantDiseasePredictor | None = None

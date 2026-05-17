@@ -141,10 +141,11 @@ function MobileTabbar({ pathname }: { pathname: string }) {
 }
 
 const NAV = [
-  { key: "scan",      href: "/scan",      labelUZ: "Tahlil",     labelEN: "Scan",    Icon: NavIconScan,    },
-  { key: "history",   href: "/history",   labelUZ: "Tarix",      labelEN: "History", Icon: NavIconHistory, },
-  { key: "dashboard", href: "/dashboard", labelUZ: "Statistika", labelEN: "Stats",   Icon: NavIconStats,   },
-  { key: "profile",   href: "/profile",   labelUZ: "Profil",     labelEN: "Profile", Icon: NavIconUser,    },
+  { key: "scan",      href: "/scan",      labelUZ: "Tahlil",     labelEN: "Scan",      Icon: NavIconScan,    },
+  { key: "history",   href: "/history",   labelUZ: "Tarix",      labelEN: "History",   Icon: NavIconHistory, },
+  { key: "dashboard", href: "/dashboard", labelUZ: "Statistika", labelEN: "Stats",     Icon: NavIconStats,   },
+  { key: "library",   href: "/library",   labelUZ: "Kasalliklar",labelEN: "Diseases",  Icon: NavIconLibrary, },
+  { key: "profile",   href: "/profile",   labelUZ: "Profil",     labelEN: "Profile",   Icon: NavIconUser,    },
 ];
 
 export function Shell({
@@ -309,7 +310,7 @@ export function Shell({
             )}
           </div>
         </header>
-        <main style={{ padding: 32, flex: 1 }}>{children}</main>
+        <main style={{ padding: 32, flex: 1, display: "flex", flexDirection: "column" }}>{children}</main>
       </div>
     </div>
   );
