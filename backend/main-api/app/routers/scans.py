@@ -83,7 +83,7 @@ async def list_scans(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Scan).where(Scan.user_id == user.id).order_by(Scan.created_at.desc())
+    query = select(Scan).where(Scan.user_id == user.id)
     if status == "healthy":
         query = query.where(Scan.is_healthy == True)
     elif status == "diseased":

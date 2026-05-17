@@ -7,8 +7,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://agrocheck:secret@postgres:5432/agrocheck"
     jwt_secret: str = "dev-secret"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
-    refresh_token_expire_days: int = 30
+    access_token_expire_minutes: int = 1440
+    refresh_token_expire_days: int = 3
 
     minio_endpoint: str = "minio:9000"
     minio_access_key: str = "minioadmin"
