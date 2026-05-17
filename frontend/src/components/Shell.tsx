@@ -98,7 +98,7 @@ const MOBILE_NAV = [
   { key: "history",   href: "/history",   Icon: MobileNavIconHistory },
   { key: "scan_btn",  href: "/scan",      primary: true, Icon: MobileNavIconScan },
   { key: "dashboard", href: "/dashboard", Icon: MobileNavIconStats },
-  { key: "profile",   href: "#",          Icon: MobileNavIconProfile },
+  { key: "profile",   href: "/profile",   Icon: MobileNavIconProfile },
 ];
 
 function MobileTabbar({ pathname }: { pathname: string }) {
