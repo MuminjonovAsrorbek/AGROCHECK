@@ -36,34 +36,6 @@ const DEFAULT_TREATMENT = {
   EN: ["Consult a specialist.", "Show to an agronomist for accurate diagnosis."],
 };
 
-function LeafSample({ size = 360, showSpots = false }: { size?: number; showSpots?: boolean }) {
-  return (
-    <svg viewBox="0 0 400 400" width={size} height={size} style={{ display: "block" }}>
-      <defs>
-        <radialGradient id="leafbg2" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#1a4d24" />
-          <stop offset="100%" stopColor="#0a3d1e" />
-        </radialGradient>
-        <pattern id="stripes2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="3" height="6" fill="#84cc16" opacity="0.18" />
-          <rect x="3" width="3" height="6" fill="#84cc16" opacity="0.06" />
-        </pattern>
-      </defs>
-      <path d="M200 30 C 100 50, 50 150, 70 270 C 90 340, 170 380, 220 370 C 310 350, 370 270, 370 170 C 370 90, 310 40, 200 30 Z" fill="url(#leafbg2)" />
-      <path d="M200 30 C 100 50, 50 150, 70 270 C 90 340, 170 380, 220 370 C 310 350, 370 270, 370 170 C 370 90, 310 40, 200 30 Z" fill="url(#stripes2)" />
-      <path d="M200 30 Q 210 200 195 370" stroke="rgba(255,255,255,.18)" strokeWidth="2" fill="none" />
-      {showSpots && (
-        <>
-          <circle cx="270" cy="160" r="18" fill="#3a2a0a" opacity="0.7" />
-          <circle cx="270" cy="160" r="11" fill="#5a3a12" />
-          <circle cx="270" cy="160" r="5" fill="#8b5a1a" />
-          <circle cx="150" cy="240" r="12" fill="#3a2a0a" opacity="0.6" />
-          <circle cx="150" cy="240" r="6" fill="#5a3a12" />
-        </>
-      )}
-    </svg>
-  );
-}
 
 function ConfidenceRing({ value }: { value: number }) {
   const r = 30;
@@ -134,8 +106,6 @@ export default function ResultPage() {
     others:   lang === "UZ" ? "Boshqa ehtimoliy variantlar" : "Other possible matches",
     modelOut: lang === "UZ" ? "Model chiqishi"        : "Model output",
     modelNote:lang === "UZ" ? "AI butun rasmni ko'rib kasallik turini aniqlaydi. Bu klassifikatsiya modeli, detektsiya emas." : "The AI classifies the whole image — it does not localize specific spots. This is classification, not detection.",
-    refs:     lang === "UZ" ? "Ma'lumotlar bazasidagi shunga o'xshash rasmlar" : "Similar images from our database",
-    dataset:  "PlantVillage dataset",
     treatment:lang === "UZ" ? "Davolash bo'yicha tavsiyalar" : "Treatment plan",
     steps:    lang === "UZ" ? "qadam" : "steps",
     severity: lang === "UZ" ? "Og'irlik" : "Severity",
@@ -227,25 +197,6 @@ export default function ResultPage() {
             </div>
           </div>
 
-          {/* Reference images */}
-          <div style={{ background: "#fff", borderRadius: 22, border: "1px solid var(--line)", padding: 22 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontFamily: "var(--sans)", fontSize: 14, fontWeight: 600 }}>{t.refs}</h3>
-              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".08em", padding: "3px 8px", borderRadius: 4, background: "rgba(10,31,21,.05)" }}>{t.dataset}</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} style={{ position: "relative", aspectRatio: "1/1", borderRadius: 10, overflow: "hidden", background: "#0a3d2e", border: "1px solid rgba(10,61,46,.10)" }}>
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <LeafSample size={140} showSpots={!scan.is_healthy} />
-                  </div>
-                  <div style={{ position: "absolute", bottom: 4, right: 4, padding: "2px 6px", borderRadius: 4, background: "rgba(0,0,0,.55)", backdropFilter: "blur(4px)", color: "#fff", fontFamily: "var(--mono)", fontSize: 9, letterSpacing: ".04em" }}>
-                    #{1247 + i}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* ── RIGHT COLUMN ── */}

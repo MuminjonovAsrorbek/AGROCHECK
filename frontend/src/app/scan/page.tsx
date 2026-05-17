@@ -36,44 +36,6 @@ const T = {
   },
 };
 
-const SAMPLES = [
-  { plantUZ: "Pomidor bargi", plantEN: "Tomato leaf", disease: "EARLY BLIGHT",   color: "#7c3f0a", spots: true  },
-  { plantUZ: "Olma bargi",    plantEN: "Apple leaf",  disease: "CEDAR RUST",     color: "#8b6914", spots: true  },
-  { plantUZ: "Uzum bargi",    plantEN: "Grape leaf",  disease: "MILDEW",         color: "#3a6b1a", spots: false },
-  { plantUZ: "Kartoshka",     plantEN: "Potato leaf", disease: "LATE BLIGHT",    color: "#1a5a3a", spots: true  },
-];
-
-function LeafCard({ sample, size = 120, lang }: { sample: typeof SAMPLES[0]; size?: number; lang: Lang }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, cursor: "pointer" }}>
-      <div style={{ borderRadius: 16, overflow: "hidden", background: `linear-gradient(155deg,${sample.color},#0a3d1e)`, aspectRatio: "1/1", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-        <svg viewBox="0 0 200 200" width={size} height={size}>
-          <defs>
-            <radialGradient id={`g${sample.disease}`} cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#2a6b3a" />
-              <stop offset="100%" stopColor="#0a3d1e" />
-            </radialGradient>
-          </defs>
-          <path d="M100 20 C 55 30, 28 80, 36 135 C 44 165, 85 190, 110 185 C 155 175, 180 130, 180 85 C 180 45, 150 22, 100 20 Z" fill={`url(#g${sample.disease})`} />
-          <path d="M100 20 C 55 30, 28 80, 36 135 C 44 165, 85 190, 110 185 C 155 175, 180 130, 180 85 C 180 45, 150 22, 100 20 Z" fill="rgba(132,204,22,0.06)" />
-          <path d="M100 20 Q 105 100, 97 185" stroke="rgba(255,255,255,.12)" strokeWidth="1.5" fill="none" />
-          {sample.spots && (
-            <>
-              <circle cx="138" cy="90" r="11" fill={sample.color} opacity="0.85" />
-              <circle cx="138" cy="90" r="6"  fill={sample.color} opacity="1" />
-              <circle cx="78"  cy="140" r="8"  fill={sample.color} opacity="0.75" />
-              <circle cx="118" cy="155" r="9"  fill={sample.color} opacity="0.8" />
-            </>
-          )}
-        </svg>
-      </div>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{lang === "UZ" ? sample.plantUZ : sample.plantEN}</div>
-        <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".06em", marginTop: 2 }}>{sample.disease}</div>
-      </div>
-    </div>
-  );
-}
 
 function LeafSample({ size = 360, showSpots = false }: { size?: number; showSpots?: boolean }) {
   return (
@@ -223,7 +185,7 @@ export default function ScanPage() {
           .progBar{animation:barProg 2s ease-out forwards}
         `}</style>
         <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 28, flex: 1 }}>
-          <div style={{ position: "relative", borderRadius: 22, overflow: "hidden", background: "linear-gradient(155deg,#0a3d2e,#06291a)", aspectRatio: "4/5", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "relative", borderRadius: 22, overflow: "hidden", background: "linear-gradient(155deg,#0a3d2e,#06291a)", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 380 }}>
             {[{ top: 16, left: 16 }, { top: 16, right: 16 }, { bottom: 16, left: 16 }, { bottom: 16, right: 16 }].map((p, i) => (
               <div key={i} style={{ position: "absolute", width: 28, height: 28, borderTop: i < 2 ? "2px solid var(--accent)" : "none", borderBottom: i >= 2 ? "2px solid var(--accent)" : "none", borderLeft: i % 2 === 0 ? "2px solid var(--accent)" : "none", borderRight: i % 2 === 1 ? "2px solid var(--accent)" : "none", ...p }} />
             ))}
@@ -327,18 +289,6 @@ export default function ScanPage() {
             {(stage === "error" && error) && <p style={{ color: "#b91c1c", fontSize: 13, marginTop: 12, position: "relative" }}>{error}</p>}
           </div>
 
-          {/* Sample images section */}
-          <div style={{ background: "#fff", borderRadius: 22, border: "1px solid var(--line)", padding: "20px 24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{t.sampleTitle}</span>
-              <span style={{ fontSize: 10, fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".08em", padding: "3px 8px", borderRadius: 999, background: "rgba(132,204,22,.12)", color: "#3f6b13" }}>{t.free}</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-              {SAMPLES.map(sample => (
-                <LeafCard key={sample.disease} sample={sample} lang={lang} size={100} />
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Right: Recent scans sidebar */}
