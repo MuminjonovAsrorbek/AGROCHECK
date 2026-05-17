@@ -308,7 +308,7 @@ export default function DashboardPage() {
       searchPlaceholder="Kasallik yoki o'simlik qidirish…"
       rightSlot={
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {rangePicker}
+          {!mobile && rangePicker}
           <button onClick={() => exportPdf().catch(() => {})} disabled={exporting} style={{ height: 40, padding: "0 14px", borderRadius: 10, border: "1px solid rgba(10,61,46,.16)", background: "linear-gradient(180deg,#0a3d2e 0%, #0b4633 100%)", color: "#fff", cursor: exporting ? "not-allowed" : "pointer", fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 10px 22px -12px rgba(10,61,46,.55)", opacity: exporting ? 0.6 : 1 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
             {exporting ? "PDF..." : "Eksport"}
@@ -317,6 +317,15 @@ export default function DashboardPage() {
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        {mobile && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {rangePicker}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Kasallik yoki o'simlik qidirish…" style={{ border: "none", outline: "none", fontFamily: "var(--sans)", fontSize: 13, flex: 1, background: "transparent" }} />
+            </div>
+          </div>
+        )}
 
         {/* KPI Row */}
         <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 14 }}>
@@ -341,7 +350,7 @@ export default function DashboardPage() {
             <div style={{ padding: "0 6px" }}>
               <TrendChart trend={stats.trend} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(3,1fr)", gap: 8, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
               {[
                 { label: "O'rtacha kunlik", value: dailyAvg },
                 { label: "Peak kun", value: String(peakDay) },
@@ -361,7 +370,7 @@ export default function DashboardPage() {
               subtitle={`Bu oyda · ${stats.total} ta tahlildan`}
               right={<a href="#" style={{ fontSize: 12, color: "var(--primary)", textDecoration: "none", fontWeight: 500 }}>Barchasini ko&apos;rish</a>}
             />
-            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", alignItems: mobile ? "flex-start" : "center", gap: 18 }}>
               <DonutChart data={filteredDiseaseDistribution} />
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
                 {filteredDiseaseDistribution.slice(0, 6).map((d, i) => {
@@ -389,7 +398,7 @@ export default function DashboardPage() {
               {filteredPlantTypes.map((p, i) => {
                 const hPct = (p.healthy / p.count) * 100;
                 return (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "130px 1fr 60px", gap: 14, alignItems: "center" }}>
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "130px 1fr 60px", gap: 10, alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#0a3d2e,#1f8a5b)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="1.8"><path d="M12 22c1-3.5 6-5 6-11a6 6 0 1 0-12 0c0 6 5 7.5 6 11Z" /></svg>

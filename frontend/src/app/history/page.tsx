@@ -404,6 +404,14 @@ export default function HistoryPage() {
               </SelectBtn>
             </div>
           )}
+          {mobile && (
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, background: "var(--paper)", border: "1px solid var(--line)" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Qidirish…" style={{ border: "none", outline: "none", background: "transparent", flex: 1, fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink)" }} />
+              </div>
+            </div>
+          )}
 
           {/* Summary */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTop: "1px dashed var(--line)", fontSize: 12, color: "var(--muted)" }}>
