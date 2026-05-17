@@ -301,7 +301,7 @@ export default function ResultPage() {
   const imageUrl = scan.image_url.replace("minio:9000", "localhost:9200");
 
   async function generatePdf() {
-    if (!pdfRef.current) return;
+    if (!pdfRef.current || !scan) return;
     setPdfLoading(true);
     try {
       const canvas = await html2canvas(pdfRef.current, {
