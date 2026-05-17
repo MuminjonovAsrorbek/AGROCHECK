@@ -24,8 +24,7 @@ async def upload_scan(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if user.plan == "free" and user.scan_count_month >= settings.free_plan_monthly_limit:
-        raise HTTPException(status_code=403, detail="Monthly scan limit reached. Upgrade to Pro.")
+    # TODO: re-enable limit check before production
 
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="Only JPG/PNG/WEBP images are allowed.")
