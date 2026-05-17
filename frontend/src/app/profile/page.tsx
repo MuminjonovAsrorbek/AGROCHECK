@@ -56,6 +56,7 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState("");
   const [notif, setNotif] = useState(true);
   const [lang, setLang] = useState<"UZ" | "EN">("UZ");
+  const [mobile, setMobile] = useState(false);
 
   useEffect(() => {
     if (user) setFullName(user.full_name);
@@ -63,6 +64,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     apiFetch<Stats>("/api/stats/?range=365").then(setStats).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   if (!user) return null;
@@ -79,13 +87,13 @@ export default function ProfilePage() {
 
   return (
     <Shell title="Profil" breadcrumb="Bosh sahifa · Profil">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 360px", gap: 20, alignItems: "start" }}>
 
         {/* ── Left column ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* User card */}
-          <div style={{ background: "linear-gradient(155deg,#0a3d2e,#06291a)", borderRadius: 22, padding: 28, position: "relative", overflow: "hidden", color: "#fff" }}>
+          <div style={{ background: "linear-gradient(155deg,#0a3d2e,#06291a)", borderRadius: 22, padding: mobile ? 20 : 28, position: "relative", overflow: "hidden", color: "#fff" }}>
             <div style={{ position: "absolute", inset: "auto -60px -80px auto", width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle,rgba(212,160,23,.35),transparent 60%)", filter: "blur(20px)" }} />
             <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 20 }}>
               <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#d4a017,#84cc16)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 26, color: "#0a3d2e", flexShrink: 0 }}>
@@ -97,7 +105,7 @@ export default function ProfilePage() {
                     <input
                       value={fullName}
                       onChange={e => setFullName(e.target.value)}
-                      style={{ fontFamily: "var(--serif)", fontSize: 24, letterSpacing: "-0.02em", background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", padding: "4px 10px", outline: "none", width: 220 }}
+                      style={{ fontFamily: "var(--serif)", fontSize: mobile ? 20 : 24, letterSpacing: "-0.02em", background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", padding: "4px 10px", outline: "none", width: mobile ? 150 : 220 }}
                       autoFocus
                     />
                     <button onClick={() => setEditing(false)} style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "var(--accent)", color: "#1a1305", fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>Saqlash</button>
@@ -105,7 +113,7 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontSize: 28, letterSpacing: "-0.02em", lineHeight: 1 }}>{user.full_name}</h2>
+                    <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontSize: mobile ? 24 : 28, letterSpacing: "-0.02em", lineHeight: 1 }}>{user.full_name}</h2>
                     <button onClick={() => setEditing(true)} style={{ background: "rgba(255,255,255,.10)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 6, color: "rgba(255,255,255,.6)", cursor: "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z" /></svg>
                     </button>
@@ -147,7 +155,7 @@ export default function ProfilePage() {
               )}
             />
             {user.plan === "free" && (
-              <div style={{ margin: "4px 22px 14px", padding: "14px 16px", borderRadius: 12, background: "rgba(10,61,46,.04)", border: "1px solid rgba(10,61,46,.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ margin: "4px 22px 14px", padding: "14px 16px", borderRadius: 12, background: "rgba(10,61,46,.04)", border: "1px solid rgba(10,61,46,.08)", display: "flex", flexDirection: mobile ? "column" : "row", gap: 12, justifyContent: "space-between", alignItems: mobile ? "flex-start" : "center" }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>Pro rejimdagi imtiyozlar</div>
                   <ul style={{ margin: "6px 0 0", paddingLeft: 16, fontSize: 12, color: "var(--muted)", lineHeight: 1.8 }}>
@@ -221,7 +229,7 @@ export default function ProfilePage() {
         </div>
 
         {/* ── Right column: stats ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, position: mobile ? "relative" : "sticky", top: 20 }}>
           {stats ? (
             <>
               <StatCard label="Jami tahlillar" value={String(stats.all_time_total)} color="#0a3d2e"

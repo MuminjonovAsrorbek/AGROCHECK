@@ -1,8 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Shell } from "@/components/Shell";
 import { apiFetch } from "@/lib/api";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 interface ScanItem {
   id: string; plant: string; disease_name: string; confidence: number;
@@ -204,6 +206,9 @@ export default function HistoryPage() {
   const [sort, setSort] = useState<Sort>("newest");
   const [selection, setSelection] = useState(new Set<string>());
   const [mobile, setMobile] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [pdfRows, setPdfRows] = useState<ScanItem[]>([]);
+  const pdfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const check = () => setMobile(window.innerWidth < 768);
@@ -285,14 +290,51 @@ export default function HistoryPage() {
     await loadScans();
   }
 
+  async function exportPdf() {
+    const selected = filtered.filter(s => selection.has(s.id));
+    const rows = selected.length > 0 ? selected : filtered;
+    if (rows.length === 0) return;
+    setPdfRows(rows);
+    setExporting(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      if (!pdfRef.current) return;
+      const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      let y = 0;
+      if (imgH <= pageH) {
+        pdf.addImage(imgData, "PNG", 0, 0, imgW, imgH);
+      } else {
+        let heightLeft = imgH;
+        pdf.addImage(imgData, "PNG", 0, y, imgW, imgH);
+        heightLeft -= pageH;
+        while (heightLeft > 0) {
+          y = heightLeft - imgH;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, y, imgW, imgH);
+          heightLeft -= pageH;
+        }
+      }
+      const stamp = new Date().toISOString().slice(0, 10);
+      pdf.save(`agrocheck-history-${stamp}.pdf`);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <Shell
       title="Tarix"
       breadcrumb="Bosh sahifa · Tarix"
       rightSlot={
-        <button style={{ height: 40, padding: "0 14px", borderRadius: 10, border: "1px solid var(--line)", background: "#fff", color: "var(--ink)", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <button onClick={() => exportPdf().catch(() => {})} disabled={exporting || filtered.length === 0} style={{ height: 40, padding: "0 14px", borderRadius: 10, border: "1px solid rgba(10,61,46,.16)", background: "linear-gradient(180deg,#0a3d2e 0%, #0b4633 100%)", color: "#fff", cursor: exporting || filtered.length === 0 ? "not-allowed" : "pointer", fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 10px 22px -12px rgba(10,61,46,.55)", opacity: exporting || filtered.length === 0 ? 0.6 : 1 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-          Eksport
+          {exporting ? "PDF..." : "PDF eksport"}
         </button>
       }
     >
@@ -362,6 +404,14 @@ export default function HistoryPage() {
               </SelectBtn>
             </div>
           )}
+          {mobile && (
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, background: "var(--paper)", border: "1px solid var(--line)" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Qidirish…" style={{ border: "none", outline: "none", background: "transparent", flex: 1, fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink)" }} />
+              </div>
+            </div>
+          )}
 
           {/* Summary */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTop: "1px dashed var(--line)", fontSize: 12, color: "var(--muted)" }}>
@@ -420,7 +470,62 @@ export default function HistoryPage() {
           </div>
         )}
       </div>
+
+      <div ref={pdfRef} style={{ position: "absolute", left: -9999, top: -9999, width: 794, background: "#fff" }}>
+        <HistoryPdfTemplate rows={pdfRows} />
+      </div>
     </Shell>
+  );
+}
+
+function HistoryPdfTemplate({ rows }: { rows: ScanItem[] }) {
+  const total = rows.length;
+  const healthy = rows.filter(r => r.is_healthy).length;
+  const diseased = total - healthy;
+  const avgConf = total ? rows.reduce((s, r) => s + r.confidence, 0) / total : 0;
+  return (
+    <div id="history-pdf-template" style={{ width: 794, padding: "40px 42px", boxSizing: "border-box", color: "#1a1f1e", fontFamily: "Manrope, Arial, sans-serif" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #0a3d2e", paddingBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: "#0a3d2e", letterSpacing: "-0.02em" }}>Agrocheck</div>
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em", color: "#6b7f78" }}>History Report</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "#6b7f78" }}>Generated: {new Date().toLocaleString("uz-UZ")}</div>
+          <div style={{ marginTop: 6, display: "inline-block", padding: "4px 10px", borderRadius: 999, background: "#f0faf5", color: "#0a3d2e", border: "1px solid #c3e6d0", fontSize: 10, fontWeight: 700 }}>AI scan history</div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginTop: 14 }}>
+        {[
+          { k: "Jami", v: String(total) },
+          { k: "Sog'lom", v: String(healthy) },
+          { k: "Kasallangan", v: String(diseased) },
+          { k: "O'rtacha ishonch", v: `${avgConf.toFixed(1)}%` },
+        ].map(item => (
+          <div key={item.k} style={{ border: "1px solid #e2e8e6", borderRadius: 10, padding: "10px 12px", background: "#f8fbf9" }}>
+            <div style={{ fontSize: 10, color: "#6b7f78", textTransform: "uppercase", letterSpacing: ".08em" }}>{item.k}</div>
+            <div style={{ marginTop: 4, fontSize: 22, color: "#0a3d2e", fontWeight: 800 }}>{item.v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 16, border: "1px solid #e2e8e6", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "130px 170px 1fr 90px 100px", gap: 10, padding: "10px 12px", background: "#f5f7f5", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "#6b7f78" }}>
+          <span>ID</span><span>Plant</span><span>Disease</span><span>Confidence</span><span>Created</span>
+        </div>
+        {rows.slice(0, 40).map((r, i) => (
+          <div key={r.id} style={{ display: "grid", gridTemplateColumns: "130px 170px 1fr 90px 100px", gap: 10, padding: "9px 12px", borderTop: i === 0 ? "none" : "1px solid #eef2ef", fontSize: 11 }}>
+            <span style={{ fontFamily: "JetBrains Mono, monospace", color: "#6b7f78" }}>#{r.id.slice(0, 8).toUpperCase()}</span>
+            <span style={{ fontWeight: 700 }}>{r.plant}</span>
+            <span>{r.disease_name}</span>
+            <span style={{ fontWeight: 700, color: "#0a3d2e" }}>{r.confidence.toFixed(1)}%</span>
+            <span style={{ color: "#6b7f78" }}>{new Date(r.created_at).toLocaleDateString("uz-UZ")}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 8, fontSize: 10, color: "#9aada8" }}>Note: PDF bir sahifada 40 tagacha yozuv chiqaradi.</div>
+    </div>
   );
 }
 

@@ -158,6 +158,7 @@ export default function ScanPage() {
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [capturing, setCapturing] = useState(false);
+  const [mobile, setMobile] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -173,6 +174,13 @@ export default function ScanPage() {
 
   useEffect(() => {
     return () => stopCamera();
+  }, []);
+
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   async function openCamera() {
@@ -319,6 +327,44 @@ export default function ScanPage() {
   }
 
   /* ── IDLE / ERROR SCREEN ── */
+  if (mobile) {
+    return (
+      <Shell title={t.title} breadcrumb={t.breadcrumb} lang={lang} onLangChange={setLang}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ borderRadius: 22, padding: 18, background: "linear-gradient(155deg, #0a3d2e, #06291a)", color: "#fff", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: "auto -40px -60px auto", width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,160,23,0.4), transparent 60%)", filter: "blur(20px)" }} />
+            <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 8px", borderRadius: 999, background: "rgba(132,204,22,0.18)", color: "#bef264", fontSize: 10, fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#84cc16" }} />
+              AI Scanner
+            </span>
+            <h2 style={{ position: "relative", margin: 0, fontFamily: "var(--serif)", fontSize: 28, lineHeight: 1.06, letterSpacing: "-0.02em" }}>Barg rasmini yuklang</h2>
+            <p style={{ position: "relative", margin: "6px 0 14px", fontSize: 13, color: "rgba(255,255,255,0.72)" }}>AI 3 soniyada kasallikni aniqlaydi</p>
+            <div style={{ position: "relative", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <button onClick={openCamera} style={{ height: 46, borderRadius: 12, border: "none", cursor: "pointer", background: "var(--accent)", color: "#1a1305", fontFamily: "var(--sans)", fontSize: 13, fontWeight: 700 }}>
+                Kamera
+              </button>
+              <button onClick={() => inputRef.current?.click()} style={{ height: 46, borderRadius: 12, cursor: "pointer", background: "rgba(255,255,255,.10)", color: "#fff", border: "1px solid rgba(255,255,255,.18)", fontFamily: "var(--sans)", fontSize: 13, fontWeight: 700 }}>
+                Galereya
+              </button>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+            {[{ v: "24", l: "Bu oy" }, { v: "142", l: "Jami" }, { v: "97%", l: "Aniqlik" }].map((x, i) => (
+              <div key={i} style={{ background: "#fff", borderRadius: 14, border: "1px solid var(--line)", padding: 12 }}>
+                <div style={{ fontFamily: "var(--serif)", fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1 }}>{x.v}</div>
+                <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".06em", marginTop: 4 }}>{x.l}</div>
+              </div>
+            ))}
+          </div>
+          <RecentScans lang={lang} />
+        </div>
+
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+      </Shell>
+    );
+  }
+
   return (
     <Shell title={t.title} breadcrumb={t.breadcrumb} lang={lang} onLangChange={setLang}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, flex: 1, alignItems: "start" }}>

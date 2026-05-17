@@ -1,7 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { apiFetch } from "@/lib/api";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 interface Stats {
   total: number; all_time_total: number; healthy: number; diseased: number;
@@ -196,6 +198,9 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [range, setRange] = useState(30);
   const [mobile, setMobile] = useState(false);
+  const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const check = () => setMobile(window.innerWidth < 768);
@@ -228,6 +233,13 @@ export default function DashboardPage() {
 
   const healthyPct = stats.total ? Math.round((stats.healthy / stats.total) * 100) : 0;
   const prevHealthyPct = Math.max(0, healthyPct + 4);
+  const q = search.trim().toLowerCase();
+  const filteredDiseaseDistribution = q
+    ? stats.disease_distribution.filter(d => d.name.toLowerCase().includes(q))
+    : stats.disease_distribution;
+  const filteredPlantTypes = q
+    ? PLANT_TYPES.filter(p => p.name.toLowerCase().includes(q) || p.en.toLowerCase().includes(q))
+    : PLANT_TYPES;
 
   const kpis = [
     {
@@ -256,21 +268,64 @@ export default function DashboardPage() {
   const dailyAvg = stats.total ? (stats.total / Math.max(Object.keys(stats.trend).length, 1)).toFixed(1) : "0";
   const peakDay = stats.total ? Math.max(...Object.values(stats.trend).map(v => v.total)) : 0;
 
+  async function exportPdf() {
+    if (!pdfRef.current) return;
+    setExporting(true);
+    try {
+      const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      let y = 0;
+      if (imgH <= pageH) {
+        pdf.addImage(imgData, "PNG", 0, 0, imgW, imgH);
+      } else {
+        let heightLeft = imgH;
+        pdf.addImage(imgData, "PNG", 0, y, imgW, imgH);
+        heightLeft -= pageH;
+        while (heightLeft > 0) {
+          y = heightLeft - imgH;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, y, imgW, imgH);
+          heightLeft -= pageH;
+        }
+      }
+      pdf.save(`agrocheck-statistics-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <Shell
       title="Statistika"
       breadcrumb="Bosh sahifa · Statistika"
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Kasallik yoki o'simlik qidirish…"
       rightSlot={
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {rangePicker}
-          <button style={{ height: 40, padding: "0 14px", borderRadius: 10, border: "1px solid var(--line)", background: "#fff", color: "var(--ink)", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {!mobile && rangePicker}
+          <button onClick={() => exportPdf().catch(() => {})} disabled={exporting} style={{ height: 40, padding: "0 14px", borderRadius: 10, border: "1px solid rgba(10,61,46,.16)", background: "linear-gradient(180deg,#0a3d2e 0%, #0b4633 100%)", color: "#fff", cursor: exporting ? "not-allowed" : "pointer", fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 10px 22px -12px rgba(10,61,46,.55)", opacity: exporting ? 0.6 : 1 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-            Eksport
+            {exporting ? "PDF..." : "Eksport"}
           </button>
         </div>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        {mobile && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {rangePicker}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Kasallik yoki o'simlik qidirish…" style={{ border: "none", outline: "none", fontFamily: "var(--sans)", fontSize: 13, flex: 1, background: "transparent" }} />
+            </div>
+          </div>
+        )}
 
         {/* KPI Row */}
         <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 14 }}>
@@ -295,7 +350,7 @@ export default function DashboardPage() {
             <div style={{ padding: "0 6px" }}>
               <TrendChart trend={stats.trend} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(3,1fr)", gap: 8, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
               {[
                 { label: "O'rtacha kunlik", value: dailyAvg },
                 { label: "Peak kun", value: String(peakDay) },
@@ -315,11 +370,11 @@ export default function DashboardPage() {
               subtitle={`Bu oyda · ${stats.total} ta tahlildan`}
               right={<a href="#" style={{ fontSize: 12, color: "var(--primary)", textDecoration: "none", fontWeight: 500 }}>Barchasini ko&apos;rish</a>}
             />
-            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-              <DonutChart data={stats.disease_distribution} />
+            <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", alignItems: mobile ? "flex-start" : "center", gap: 18 }}>
+              <DonutChart data={filteredDiseaseDistribution} />
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
-                {stats.disease_distribution.slice(0, 6).map((d, i) => {
-                  const total = stats.disease_distribution.reduce((s, x) => s + x.count, 0);
+                {filteredDiseaseDistribution.slice(0, 6).map((d, i) => {
+                  const total = filteredDiseaseDistribution.reduce((s, x) => s + x.count, 0);
                   const pct = total ? Math.round((d.count / total) * 100) : 0;
                   return (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
@@ -329,7 +384,7 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
-                {stats.disease_distribution.length === 0 && <div style={{ color: "var(--muted)", fontSize: 13 }}>Ma&apos;lumot yo&apos;q</div>}
+                {filteredDiseaseDistribution.length === 0 && <div style={{ color: "var(--muted)", fontSize: 13 }}>Ma&apos;lumot yo&apos;q</div>}
               </div>
             </div>
           </Card>
@@ -340,10 +395,10 @@ export default function DashboardPage() {
           <Card>
             <CardHeader title="O'simlik turlari" subtitle="Sog'lom va kasal nisbati" />
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {PLANT_TYPES.map((p, i) => {
+              {filteredPlantTypes.map((p, i) => {
                 const hPct = (p.healthy / p.count) * 100;
                 return (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "130px 1fr 60px", gap: 14, alignItems: "center" }}>
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "130px 1fr 60px", gap: 10, alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#0a3d2e,#1f8a5b)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="1.8"><path d="M12 22c1-3.5 6-5 6-11a6 6 0 1 0-12 0c0 6 5 7.5 6 11Z" /></svg>
@@ -408,6 +463,68 @@ export default function DashboardPage() {
         </div>
 
       </div>
+      <div ref={pdfRef} style={{ position: "absolute", left: -9999, top: -9999, width: 794, background: "#fff" }}>
+        <StatsPdfTemplate
+          range={range}
+          stats={stats}
+          diseases={filteredDiseaseDistribution}
+          plants={filteredPlantTypes}
+        />
+      </div>
     </Shell>
+  );
+}
+
+function StatsPdfTemplate({
+  range,
+  stats,
+  diseases,
+  plants,
+}: {
+  range: number;
+  stats: Stats;
+  diseases: { name: string; count: number }[];
+  plants: { name: string; en: string; count: number; healthy: number }[];
+}) {
+  const healthyPct = stats.total ? Math.round((stats.healthy / stats.total) * 100) : 0;
+  return (
+    <div style={{ width: 794, padding: "40px 42px", boxSizing: "border-box", color: "#1a1f1e", fontFamily: "Manrope, Arial, sans-serif" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #0a3d2e", paddingBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: "#0a3d2e", letterSpacing: "-0.02em" }}>Agrocheck</div>
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em", color: "#6b7f78" }}>Statistics Report · {range} days</div>
+        </div>
+        <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: "#6b7f78" }}>{new Date().toLocaleString("uz-UZ")}</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginTop: 14 }}>
+        {[
+          { k: "Jami tahlillar", v: String(stats.all_time_total) },
+          { k: "Bu davrda", v: String(stats.total) },
+          { k: "Sog'lom natija", v: `${healthyPct}%` },
+          { k: "O'rtacha ishonch", v: `${stats.avg_confidence.toFixed(1)}%` },
+        ].map(item => (
+          <div key={item.k} style={{ border: "1px solid #e2e8e6", borderRadius: 10, padding: "10px 12px", background: "#f8fbf9" }}>
+            <div style={{ fontSize: 10, color: "#6b7f78", textTransform: "uppercase", letterSpacing: ".08em" }}>{item.k}</div>
+            <div style={{ marginTop: 4, fontSize: 22, color: "#0a3d2e", fontWeight: 800 }}>{item.v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 16, border: "1px solid #e2e8e6", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ padding: "10px 12px", background: "#f5f7f5", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "#6b7f78" }}>Top diseases</div>
+        {diseases.slice(0, 10).map((d, i) => (
+          <div key={d.name} style={{ display: "grid", gridTemplateColumns: "1fr 60px", padding: "8px 12px", borderTop: i ? "1px solid #eef2ef" : "none", fontSize: 12 }}>
+            <span>{d.name}</span><span style={{ textAlign: "right", fontWeight: 700 }}>{d.count}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 12, border: "1px solid #e2e8e6", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ padding: "10px 12px", background: "#f5f7f5", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "#6b7f78" }}>Plant types</div>
+        {plants.map((p, i) => (
+          <div key={p.name} style={{ display: "grid", gridTemplateColumns: "1fr 70px 70px", padding: "8px 12px", borderTop: i ? "1px solid #eef2ef" : "none", fontSize: 12 }}>
+            <span>{p.name}</span><span style={{ textAlign: "right" }}>{p.count}</span><span style={{ textAlign: "right" }}>{Math.round((p.healthy / p.count) * 100)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

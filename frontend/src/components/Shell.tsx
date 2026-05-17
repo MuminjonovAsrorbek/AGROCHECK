@@ -149,7 +149,7 @@ const NAV = [
 ];
 
 export function Shell({
-  children, title, breadcrumb, rightSlot, lang = "UZ", onLangChange,
+  children, title, breadcrumb, rightSlot, lang = "UZ", onLangChange, searchValue, onSearchChange, searchPlaceholder,
 }: {
   children: ReactNode;
   title: string;
@@ -157,6 +157,9 @@ export function Shell({
   rightSlot?: ReactNode;
   lang?: Lang;
   onLangChange?: (l: Lang) => void;
+  searchValue?: string;
+  onSearchChange?: (v: string) => void;
+  searchPlaceholder?: string;
 }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -294,7 +297,12 @@ export function Shell({
             {rightSlot}
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#fff" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-              <input placeholder={lang === "UZ" ? "Qidirish…" : "Search…"} style={{ border: "none", outline: "none", fontFamily: "var(--sans)", fontSize: 13, width: 160, background: "transparent" }} />
+              <input
+                placeholder={searchPlaceholder ?? (lang === "UZ" ? "Qidirish…" : "Search…")}
+                value={searchValue ?? ""}
+                onChange={e => onSearchChange?.(e.target.value)}
+                style={{ border: "none", outline: "none", fontFamily: "var(--sans)", fontSize: 13, width: 160, background: "transparent" }}
+              />
               <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "var(--muted)", padding: "2px 5px", borderRadius: 4, border: "1px solid var(--line)" }}>⌘K</span>
             </div>
             <button style={{ width: 40, height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
