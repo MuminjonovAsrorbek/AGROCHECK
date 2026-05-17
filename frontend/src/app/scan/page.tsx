@@ -154,9 +154,74 @@ export default function ScanPage() {
   const [drag, setDrag] = useState(false);
   const [error, setError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const [capturing, setCapturing] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const t = T[lang];
+
+  function stopCamera() {
+    if (!streamRef.current) return;
+    streamRef.current.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+  }
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
+
+  async function openCamera() {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      cameraInputRef.current?.click();
+      return;
+    }
+    setCameraError("");
+    setCameraLoading(true);
+    setCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch {
+      setCameraError(lang === "UZ" ? "Kameraga kirish rad etildi yoki mavjud emas." : "Camera access denied or unavailable.");
+      cameraInputRef.current?.click();
+    } finally {
+      setCameraLoading(false);
+    }
+  }
+
+  async function capturePhoto() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+    setCapturing(true);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas is unavailable");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      if (!blob) throw new Error("Capture failed");
+      const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+      setCameraOpen(false);
+      stopCamera();
+      await handleFile(file);
+    } finally {
+      setCapturing(false);
+    }
+  }
 
   async function handleFile(file: File) {
     const url = URL.createObjectURL(file);
@@ -285,7 +350,7 @@ export default function ScanPage() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5-5 5 5M12 15V3" /></svg>
                 {t.chooseFile}
               </button>
-              <button style={{ height: 50, padding: "0 22px", borderRadius: 12, cursor: "pointer", background: "#fff", color: "var(--ink)", border: "1px solid var(--line-strong)", fontFamily: "var(--sans)", fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 10 }}>
+              <button onClick={openCamera} style={{ height: 50, padding: "0 22px", borderRadius: 12, cursor: "pointer", background: "#fff", color: "var(--ink)", border: "1px solid var(--line-strong)", fontFamily: "var(--sans)", fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 10 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
                 {t.takePhoto}
               </button>
@@ -302,6 +367,35 @@ export default function ScanPage() {
       </div>
 
       <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+      {cameraOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(10,31,21,.72)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ width: "min(920px, 100%)", background: "#fff", borderRadius: 18, border: "1px solid var(--line)", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,.35)" }}>
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <strong style={{ fontSize: 15 }}>{lang === "UZ" ? "Kamera" : "Camera"}</strong>
+              <button onClick={() => { setCameraOpen(false); stopCamera(); }} style={{ border: "1px solid var(--line)", borderRadius: 8, background: "#fff", height: 34, padding: "0 12px", cursor: "pointer" }}>
+                {lang === "UZ" ? "Yopish" : "Close"}
+              </button>
+            </div>
+            <div style={{ padding: 14 }}>
+              <div style={{ borderRadius: 14, overflow: "hidden", background: "#0a3d2e", minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <video ref={videoRef} playsInline muted style={{ width: "100%", maxHeight: "70vh", objectFit: "cover", display: cameraLoading ? "none" : "block" }} />
+                {cameraLoading && <p style={{ color: "#fff" }}>{lang === "UZ" ? "Kamera yuklanmoqda..." : "Loading camera..."}</p>}
+              </div>
+              {cameraError && <p style={{ color: "#b91c1c", margin: "10px 2px 0", fontSize: 13 }}>{cameraError}</p>}
+              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                <button onClick={capturePhoto} disabled={cameraLoading || capturing} style={{ height: 44, padding: "0 16px", borderRadius: 10, border: "none", cursor: "pointer", background: "var(--primary)", color: "#fff", fontWeight: 600, opacity: cameraLoading || capturing ? 0.65 : 1 }}>
+                  {capturing ? (lang === "UZ" ? "Olinmoqda..." : "Capturing...") : (lang === "UZ" ? "Rasmga olish" : "Capture photo")}
+                </button>
+                <button onClick={() => cameraInputRef.current?.click()} style={{ height: 44, padding: "0 16px", borderRadius: 10, border: "1px solid var(--line-strong)", background: "#fff", cursor: "pointer", fontWeight: 600 }}>
+                  {lang === "UZ" ? "Galereyadan tanlash" : "Choose from gallery"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }
