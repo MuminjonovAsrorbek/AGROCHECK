@@ -12,6 +12,8 @@ interface ScanItem {
 type Status = "ok" | "warn" | "bad" | "lowconf";
 type View = "list" | "grid";
 type Filter = "all" | "healthy" | "diseased" | "lowconf";
+type Period = "7" | "30" | "90" | "365";
+type Sort = "newest" | "oldest" | "confidence_desc" | "confidence_asc";
 
 function imgUrl(u: string) {
   return u.replace("minio:9000", "localhost:9200");
@@ -196,6 +198,10 @@ export default function HistoryPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [view, setView] = useState<View>("list");
   const [search, setSearch] = useState("");
+  const [searchDebounced, setSearchDebounced] = useState("");
+  const [plant, setPlant] = useState("all");
+  const [period, setPeriod] = useState<Period>("30");
+  const [sort, setSort] = useState<Sort>("newest");
   const [selection, setSelection] = useState(new Set<string>());
   const [mobile, setMobile] = useState(false);
 
@@ -207,8 +213,31 @@ export default function HistoryPage() {
   }, []);
 
   useEffect(() => {
-    apiFetch<ScanItem[]>("/api/scans/").then(data => { setScans(data); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    const t = setTimeout(() => setSearchDebounced(search.trim()), 320);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  async function loadScans() {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        limit: "200",
+        period_days: period,
+        sort,
+      });
+      if (searchDebounced) params.set("q", searchDebounced);
+      if (plant !== "all") params.set("plant", plant);
+      const data = await apiFetch<ScanItem[]>(`/api/scans/?${params.toString()}`);
+      setScans(data);
+      setSelection(new Set());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadScans().catch(() => setLoading(false));
+  }, [period, sort, plant, searchDebounced]);
 
   const filterCounts = {
     all: scans.length,
@@ -244,6 +273,17 @@ export default function HistoryPage() {
     { k: "diseased", label: "Kasallangan",  color: "#d4a017" },
     { k: "lowconf",  label: "Past ishonch", color: "#9ca3af" },
   ];
+  const plantOptions = Array.from(new Set(scans.map(s => s.plant))).sort((a, b) => a.localeCompare(b));
+
+  async function deleteSelected() {
+    if (selection.size === 0) return;
+    const ids = Array.from(selection);
+    await apiFetch<{ deleted: number }>("/api/scans/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    });
+    await loadScans();
+  }
 
   return (
     <Shell
@@ -298,9 +338,28 @@ export default function HistoryPage() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tahlil yoki o'simlik qidirish…" style={{ border: "none", outline: "none", background: "transparent", flex: 1, fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink)" }} />
               </div>
-              <SelectBtn label="O'simlik" value="Barcha o'simliklar" />
-              <SelectBtn label="Davr" value="So'nggi 30 kun" />
-              <SelectBtn label="Saralash" value="Yangidan" />
+              <SelectBtn label="O'simlik" value={plant === "all" ? "Barcha o'simliklar" : plant}>
+                <select value={plant} onChange={e => setPlant(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink)", fontWeight: 500, width: "100%" }}>
+                  <option value="all">Barcha o&apos;simliklar</option>
+                  {plantOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </SelectBtn>
+              <SelectBtn label="Davr" value={period === "7" ? "So'nggi 7 kun" : period === "30" ? "So'nggi 30 kun" : period === "90" ? "So'nggi 90 kun" : "So'nggi 1 yil"}>
+                <select value={period} onChange={e => setPeriod(e.target.value as Period)} style={{ border: "none", outline: "none", background: "transparent", fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink)", fontWeight: 500, width: "100%" }}>
+                  <option value="7">So&apos;nggi 7 kun</option>
+                  <option value="30">So&apos;nggi 30 kun</option>
+                  <option value="90">So&apos;nggi 90 kun</option>
+                  <option value="365">So&apos;nggi 1 yil</option>
+                </select>
+              </SelectBtn>
+              <SelectBtn label="Saralash" value={sort === "newest" ? "Yangidan" : sort === "oldest" ? "Eskidan" : sort === "confidence_desc" ? "Ishonch yuqori" : "Ishonch past"}>
+                <select value={sort} onChange={e => setSort(e.target.value as Sort)} style={{ border: "none", outline: "none", background: "transparent", fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink)", fontWeight: 500, width: "100%" }}>
+                  <option value="newest">Yangidan</option>
+                  <option value="oldest">Eskidan</option>
+                  <option value="confidence_desc">Ishonch yuqori</option>
+                  <option value="confidence_asc">Ishonch past</option>
+                </select>
+              </SelectBtn>
             </div>
           )}
 
@@ -313,7 +372,7 @@ export default function HistoryPage() {
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={{ color: "var(--ink)", fontWeight: 600 }}>{selection.size} tanlandi</span>
                 <button style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--line)", background: "#fff", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500 }}>Yuklab olish</button>
-                <button style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--line)", background: "#fff", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "#b91c1c" }}>O&apos;chirish</button>
+                <button onClick={() => deleteSelected().catch(() => {})} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--line)", background: "#fff", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "#b91c1c" }}>O&apos;chirish</button>
               </div>
             )}
           </div>
@@ -365,14 +424,16 @@ export default function HistoryPage() {
   );
 }
 
-function SelectBtn({ label, value }: { label: string; value: string }) {
+function SelectBtn({ label, value, children }: { label: string; value: string; children?: React.ReactNode }) {
   return (
-    <button style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", padding: "7px 14px", borderRadius: 10, border: "1px solid var(--line)", background: "#fff", cursor: "pointer", gap: 1, minWidth: 140 }}>
+    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", padding: "7px 14px", borderRadius: 10, border: "1px solid var(--line)", background: "#fff", gap: 1, minWidth: 140 }}>
       <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".10em" }}>{label}</span>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
-        {value}
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" /></svg>
-      </span>
-    </button>
+      {children ?? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+          {value}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" /></svg>
+        </span>
+      )}
+    </div>
   );
 }
