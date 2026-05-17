@@ -153,11 +153,14 @@ export default function ScanPage() {
   const [step, setStep] = useState(0);
   const [drag, setDrag] = useState(false);
   const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const t = T[lang];
 
   async function handleFile(file: File) {
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
     setStage("analyzing"); setStep(0); setError("");
     const interval = setInterval(() => setStep(s => Math.min(s + 1, 3)), 1100);
     try {
@@ -189,7 +192,10 @@ export default function ScanPage() {
             {[{ top: 16, left: 16 }, { top: 16, right: 16 }, { bottom: 16, left: 16 }, { bottom: 16, right: 16 }].map((p, i) => (
               <div key={i} style={{ position: "absolute", width: 28, height: 28, borderTop: i < 2 ? "2px solid var(--accent)" : "none", borderBottom: i >= 2 ? "2px solid var(--accent)" : "none", borderLeft: i % 2 === 0 ? "2px solid var(--accent)" : "none", borderRight: i % 2 === 1 ? "2px solid var(--accent)" : "none", ...p }} />
             ))}
-            <LeafSample size={420} showSpots />
+            {previewUrl
+              ? <img src={previewUrl} alt="scan preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              : <LeafSample size={420} showSpots />
+            }
             <div style={{ position: "absolute", left: 24, right: 24, height: 2, background: "linear-gradient(90deg,transparent,var(--accent),transparent)", boxShadow: "0 0 20px var(--accent)", animation: "scanmove 2.4s ease-in-out infinite" }} />
             <div style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 999, background: "rgba(0,0,0,.4)", color: "#fff", fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid rgba(255,255,255,.10)", backdropFilter: "blur(8px)" }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#84cc16", animation: "pulse 1s ease-in-out infinite" }} />
