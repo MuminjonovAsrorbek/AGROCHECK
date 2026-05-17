@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Wordmark } from "./Logo";
 import { useAuth } from "@/lib/auth-context";
+import { apiFetch } from "@/lib/api";
 import type { ReactNode } from "react";
 
 type Lang = "UZ" | "EN";
@@ -140,11 +141,11 @@ function MobileTabbar({ pathname }: { pathname: string }) {
 }
 
 const NAV = [
-  { key: "scan",      href: "/scan",      labelUZ: "Tahlil",      labelEN: "Scan",    Icon: NavIconScan,    badge: null },
-  { key: "history",   href: "/history",   labelUZ: "Tarix",       labelEN: "History", Icon: NavIconHistory, badge: "24" },
-  { key: "dashboard", href: "/dashboard", labelUZ: "Statistika",  labelEN: "Stats",   Icon: NavIconStats,   badge: null },
-  { key: "library",   href: "#",          labelUZ: "Kasalliklar", labelEN: "Library", Icon: NavIconLibrary, badge: null },
-  { key: "profile",   href: "#",          labelUZ: "Profil",      labelEN: "Profile", Icon: NavIconUser,    badge: null },
+  { key: "scan",      href: "/scan",      labelUZ: "Tahlil",     labelEN: "Scan",      Icon: NavIconScan,    },
+  { key: "history",   href: "/history",   labelUZ: "Tarix",      labelEN: "History",   Icon: NavIconHistory, },
+  { key: "dashboard", href: "/dashboard", labelUZ: "Statistika", labelEN: "Stats",     Icon: NavIconStats,   },
+  { key: "library",   href: "/library",   labelUZ: "Kasalliklar",labelEN: "Diseases",  Icon: NavIconLibrary, },
+  { key: "profile",   href: "/profile",   labelUZ: "Profil",     labelEN: "Profile",   Icon: NavIconUser,    },
 ];
 
 export function Shell({
@@ -160,6 +161,14 @@ export function Shell({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const mobile = useMobile();
+  const [scanTotal, setScanTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) { setScanTotal(null); return; }
+    apiFetch<{ all_time_total: number }>("/api/stats/?range=365")
+      .then(d => setScanTotal(d.all_time_total))
+      .catch(() => {});
+  }, [user]);
 
   if (mobile) {
     return (
@@ -211,6 +220,7 @@ export function Shell({
           {NAV.map(item => {
             const active = pathname.startsWith(item.href) && item.href !== "#";
             const label = lang === "UZ" ? item.labelUZ : item.labelEN;
+            const badge = item.key === "history" && scanTotal !== null ? String(scanTotal) : null;
             return (
               <Link key={item.key} href={item.href} style={{
                 display: "flex", alignItems: "center", gap: 12,
@@ -223,13 +233,13 @@ export function Shell({
               }}>
                 <item.Icon active={active} />
                 <span>{label}</span>
-                {item.badge && (
+                {badge && (
                   <span style={{
                     marginLeft: "auto", fontSize: 10, fontFamily: "var(--mono)",
                     padding: "2px 6px", borderRadius: 999,
                     background: active ? "var(--accent)" : "rgba(212,160,23,.18)",
                     color: active ? "#1a1305" : "var(--accent)",
-                  }}>{item.badge}</span>
+                  }}>{badge}</span>
                 )}
               </Link>
             );
@@ -300,7 +310,7 @@ export function Shell({
             )}
           </div>
         </header>
-        <main style={{ padding: 32, flex: 1 }}>{children}</main>
+        <main style={{ padding: 32, flex: 1, display: "flex", flexDirection: "column" }}>{children}</main>
       </div>
     </div>
   );

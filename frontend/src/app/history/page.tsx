@@ -256,7 +256,7 @@ export default function HistoryPage() {
         </button>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 1280 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
         {/* Filter bar */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid var(--line)", padding: 14, display: "flex", flexDirection: "column", gap: 14 }}>

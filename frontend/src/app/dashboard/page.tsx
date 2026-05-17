@@ -270,7 +270,7 @@ export default function DashboardPage() {
         </div>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 1280 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
         {/* KPI Row */}
         <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 14 }}>
