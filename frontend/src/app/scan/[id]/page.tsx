@@ -163,7 +163,7 @@ export default function ResultPage() {
           {t.pdf}
         </button>
       }>
-      <div style={{ display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 24, maxWidth: 1300 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 24 }}>
 
         {/* ── LEFT COLUMN ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

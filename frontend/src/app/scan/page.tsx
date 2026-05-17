@@ -197,9 +197,12 @@ export default function ScanPage() {
 
   async function handleFile(file: File) {
     setStage("analyzing"); setStep(0); setError("");
-    const interval = setInterval(() => setStep(s => Math.min(s + 1, 3)), 800);
+    const interval = setInterval(() => setStep(s => Math.min(s + 1, 3)), 1100);
     try {
-      const result = await apiUpload<{ id: string }>("/api/scans/upload", file);
+      const [result] = await Promise.all([
+        apiUpload<{ id: string }>("/api/scans/upload", file),
+        new Promise(resolve => setTimeout(resolve, 4500)),
+      ]);
       clearInterval(interval);
       router.push(`/scan/${result.id}`);
     } catch (err: unknown) {
