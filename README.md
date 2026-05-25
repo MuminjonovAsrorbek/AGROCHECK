@@ -400,36 +400,4 @@ curl http://localhost:8001/health
 
 ---
 
-## 📄 Litsenziya
-
-MIT License - qarang [LICENSE](LICENSE) fayl
-
----
-
-## 👥 Kontributorlari
-
-- **Asrorali Muminjanov** (@MuminjonovAsrorbek) - Founder & Developer
-
----
-
-## 📞 Bog'lanish
-
-- **Email**: your-email@example.com
-- **GitHub**: https://github.com/MuminjonovAsrorbek
-- **Telegram**: @your_telegram_handle
-
----
-
-## 🎯 Tumuski Rejalari
-
-- [ ] Apple App Store-da chiqarish
-- [ ] Android Play Store-da chiqarish
-- [ ] Multibaholi qo'llab-quvvatlash
-- [ ] Offline mode
-- [ ] Advanced analytics
-- [ ] Multi-image scanning
-- [ ] Telegram bot integration
-
----
-
 **Oxirgi yangilanish**: 2026-05-25 | **Versiya**: 0.1.0
